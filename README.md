@@ -5,7 +5,7 @@ A full-stack demo application for searching, uploading, downloading, and managin
 ## Features
 
 - 🔐 JWT-based authentication with viewer, editor, and admin roles
-- 🔎 Fuzzy Markdown search powered by Fuse.js
+- 🔎 Fuzzy Markdown search with AND, regex, and wildcard modes powered by Fuse.js
 - ⬆️ Upload, ⬇️ download, and 🗑️ delete Markdown files
 - 📡 Real-time notifications when files change or the index rebuilds
 - 📝 Upload history tracking for administrators
@@ -38,7 +38,7 @@ A full-stack demo application for searching, uploading, downloading, and managin
 | Method | Endpoint | Description | Role |
 | ------ | -------- | ----------- | ---- |
 | `GET` | `/get-token?user=Alice&role=viewer` | Issue a short-lived JWT. | Public |
-| `GET` | `/search-doc?keywords=socket,live` | Search Markdown lines for keywords. | Viewer+ |
+| `GET` | `/search-doc?keywords=socket,live&mode=and` | Search Markdown lines (supports AND, regex, and wildcard modes). | Viewer+ |
 | `POST` | `/upload-doc` | Upload a `.md` file (form field `file`). | Editor/Admin |
 | `GET` | `/download-doc/:filename` | Download a Markdown file. | Viewer+ |
 | `DELETE` | `/delete-doc/:filename` | Delete a Markdown file. | Admin |
@@ -64,11 +64,11 @@ All authenticated routes expect an `Authorization: Bearer <token>` header.
 - The search index automatically rebuilds when Markdown files are added, modified, or removed.
 - Upload history entries capture username, role, filename, and upload timestamp.
 - Customize the JWT secret by setting `JWT_SECRET` in your environment.
+- Search supports multiple strategies via the `mode` query parameter:
+  - `and` (default): comma-separated keywords must all appear in a matching line.
+  - `regex`: full JavaScript regular expressions with operators such as `|` for OR.
+  - `wildcard`: simple patterns using `*` (any sequence), `?` (single character), and `|` for alternation.
 
 ## License
 
 This project is provided as part of the University Coding Challenge 2025 practice scenario.
-# codex-daily
-Daily Project Auto-Build
-
-Last updated: 2025-11-12 15:44:39 UTC

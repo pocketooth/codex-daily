@@ -35,6 +35,7 @@ if (!fs.existsSync(UPLOAD_LOG)) {
 }
 
 let fuseIndex = null;
+let searchableLines = [];
 
 const fuseOptions = {
   includeScore: true,
@@ -81,7 +82,36 @@ function buildIndex() {
   });
 
   fuseIndex = newIndex.length ? new Fuse(newIndex, fuseOptions) : null;
+  searchableLines = newIndex;
   io.emit('index_updated');
+}
+
+function buildRegexFromWildcard(pattern) {
+  const placeholder = pattern
+    .replace(/\\\*/g, '___ESCAPED_STAR___')
+    .replace(/\\\?/g, '___ESCAPED_Q___')
+    .replace(/\*/g, '___WILDCARD_STAR___')
+    .replace(/\?/g, '___WILDCARD_Q___');
+
+  const escaped = placeholder.replace(/([.+^${}()\[\]\\])/g, '\\$1');
+
+  const restored = escaped
+    .replace(/___WILDCARD_STAR___/g, '.*')
+    .replace(/___WILDCARD_Q___/g, '.')
+    .replace(/___ESCAPED_STAR___/g, '\\*')
+    .replace(/___ESCAPED_Q___/g, '\\?');
+
+  return new RegExp(restored, 'i');
+}
+
+function buildRegex(pattern, mode) {
+  if (mode === 'regex') {
+    return new RegExp(pattern, 'i');
+  }
+  if (mode === 'wildcard') {
+    return buildRegexFromWildcard(pattern);
+  }
+  return null;
 }
 
 function sanitizeFilename(filename) {
@@ -174,8 +204,62 @@ app.get('/get-token', (req, res) => {
 });
 
 app.get('/search-doc', authenticate, (req, res) => {
-  const { keywords = '' } = req.query;
-  const keywordList = keywords
+  const { keywords = '', mode = 'and' } = req.query;
+  const trimmed = keywords.trim();
+
+  if (!trimmed) {
+    return res.status(400).json({ message: 'At least one keyword is required.' });
+  }
+
+  const allowedModes = ['and', 'regex', 'wildcard'];
+  if (!allowedModes.includes(mode)) {
+    return res.status(400).json({ message: 'Unsupported search mode.' });
+  }
+
+  if (!searchableLines.length) {
+    return res.json({ results: [] });
+  }
+
+  const matchesMap = new Map();
+
+  if (mode === 'regex' || mode === 'wildcard') {
+    let regex;
+    try {
+      regex = buildRegex(trimmed, mode);
+    } catch (error) {
+      return res.status(400).json({ message: 'Invalid search pattern.' });
+    }
+
+    searchableLines.forEach((item) => {
+      const testRegex = new RegExp(regex.source, regex.flags);
+      if (!testRegex.test(item.text)) {
+        return;
+      }
+      if (!matchesMap.has(item.filename)) {
+        matchesMap.set(item.filename, []);
+      }
+      matchesMap.get(item.filename).push({
+        lineNumber: item.lineNumber,
+        line: item.text,
+      });
+    });
+
+    const response = Array.from(matchesMap.entries()).map(([filename, matches]) => ({
+      filename,
+      matches,
+    }));
+
+    const highlightRegex = new RegExp(regex.source, regex.flags.includes('g') ? regex.flags : `${regex.flags}g`);
+
+    return res.json({
+      results: response,
+      mode,
+      pattern: highlightRegex.source,
+      flags: highlightRegex.flags,
+    });
+  }
+
+  const keywordList = trimmed
     .split(',')
     .map((kw) => kw.trim())
     .filter(Boolean);
@@ -191,7 +275,6 @@ app.get('/search-doc', authenticate, (req, res) => {
   const searchTerm = keywordList.join(' ');
   const fuseResults = fuseIndex.search(searchTerm);
 
-  const matchesMap = new Map();
   const lowerKeywords = keywordList.map((kw) => kw.toLowerCase());
 
   fuseResults.forEach(({ item }) => {
@@ -214,7 +297,7 @@ app.get('/search-doc', authenticate, (req, res) => {
     matches,
   }));
 
-  res.json({ results: response });
+  res.json({ results: response, mode: 'and', keywords: keywordList });
 });
 
 app.post('/upload-doc', authenticate, authorize(['editor', 'admin']), (req, res) => {

@@ -205,8 +205,23 @@
 
       <article class="card" id="search-card">
         <h2>Search Markdown</h2>
-        <label for="search-input">Keywords (comma separated)</label>
-        <input id="search-input" type="text" placeholder="e.g. websocket, realtime" />
+        <label for="search-input">Search keywords or pattern</label>
+        <input
+          id="search-input"
+          type="text"
+          placeholder="e.g. websocket, realtime or error|warning"
+        />
+        <label for="search-mode" style="margin-top: 0.75rem;">Mode</label>
+        <select id="search-mode">
+          <option value="and">All keywords (AND)</option>
+          <option value="regex">Regex pattern (use | for OR)</option>
+          <option value="wildcard">Wildcard (* and ?)</option>
+        </select>
+        <p style="margin: 0.75rem 0 0; font-size: 0.85rem; color: #6b7280;">
+          Use commas to separate keywords for AND search. Regex mode accepts any JavaScript regular
+          expression. Wildcard mode supports <code>*</code> for any sequence and <code>?</code> for a
+          single character, plus <code>|</code> for alternatives.
+        </p>
         <button id="search-btn" style="margin-top: 0.75rem;">🔎 Search</button>
       </article>
 
@@ -246,6 +261,7 @@
       const historyBtn = document.getElementById('history-btn');
       const fileInput = document.getElementById('file-input');
       const searchInput = document.getElementById('search-input');
+      const searchModeSelect = document.getElementById('search-mode');
       const resultsEl = document.getElementById('results');
       const currentUserEl = document.getElementById('current-user');
       const historyContainer = document.getElementById('history-container');
@@ -253,7 +269,7 @@
       const allowedRoles = ['viewer', 'editor', 'admin'];
       let authToken = null;
       let userProfile = null;
-      let lastKeywords = '';
+      let lastSearch = null;
       let socket = null;
 
       const origin = window.location.origin.startsWith('http')
@@ -290,17 +306,51 @@
         historyBtn.disabled = !isAdmin;
       }
 
-      function highlightKeywords(text, keywords) {
-        let highlighted = text;
-        keywords.forEach((keyword) => {
-          if (!keyword) return;
-          const regex = new RegExp(`(${keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
-          highlighted = highlighted.replace(regex, '<mark>$1</mark>');
-        });
-        return highlighted;
+      function wildcardPatternToRegexSource(pattern) {
+        const placeholder = pattern
+          .replace(/\\\*/g, '___ESCAPED_STAR___')
+          .replace(/\\\?/g, '___ESCAPED_Q___')
+          .replace(/\*/g, '___WILDCARD_STAR___')
+          .replace(/\?/g, '___WILDCARD_Q___');
+
+        const escaped = placeholder.replace(/([.+^${}()\[\]\\])/g, '\\$1');
+
+        return escaped
+          .replace(/___WILDCARD_STAR___/g, '.*')
+          .replace(/___WILDCARD_Q___/g, '.')
+          .replace(/___ESCAPED_STAR___/g, '\\*')
+          .replace(/___ESCAPED_Q___/g, '\\?');
       }
 
-      function renderResults(items, keywords) {
+      function highlightMatches(text, descriptor) {
+        if (!descriptor) {
+          return text;
+        }
+
+        if (descriptor.mode === 'and') {
+          let highlighted = text;
+          (descriptor.keywords || []).forEach((keyword) => {
+            if (!keyword) return;
+            const regex = new RegExp(`(${keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+            highlighted = highlighted.replace(regex, '<mark>$1</mark>');
+          });
+          return highlighted;
+        }
+
+        if (descriptor.mode === 'regex' || descriptor.mode === 'wildcard') {
+          try {
+            const flags = descriptor.flags?.includes('g') ? descriptor.flags : `${descriptor.flags || ''}g`;
+            const regex = new RegExp(descriptor.pattern, flags.includes('i') ? flags : `${flags}i`);
+            return text.replace(regex, (match) => `<mark>${match}</mark>`);
+          } catch (_error) {
+            return text;
+          }
+        }
+
+        return text;
+      }
+
+      function renderResults(items, descriptor) {
         resultsEl.innerHTML = '';
         if (!items.length) {
           resultsEl.innerHTML = '<p style="color:#6b7280;">No matches yet. Try another search.</p>';
@@ -322,7 +372,7 @@
             .forEach((match) => {
               const line = document.createElement('p');
               line.className = 'match-line';
-              line.innerHTML = `Ln ${match.lineNumber}: ${highlightKeywords(match.line, keywords)}`;
+              line.innerHTML = `Ln ${match.lineNumber}: ${highlightMatches(match.line, descriptor)}`;
               card.appendChild(line);
             });
 
@@ -376,38 +426,70 @@
           const byline = user?.user ? ` by ${user.user}` : '';
           const message = `File ${filename} ${event}${byline}. Refreshing results...`;
           setStatus(message, 'info');
-          if (lastKeywords) {
-            performSearch(lastKeywords);
-          }
+          rerunLastSearch();
         });
 
         socket.on('index_updated', () => {
-          if (lastKeywords) {
-            performSearch(lastKeywords);
-          }
+          rerunLastSearch();
         });
 
         socket.on('index_ready', () => {
-          if (lastKeywords) {
-            performSearch(lastKeywords);
-          }
+          rerunLastSearch();
         });
       }
 
-      async function performSearch(rawKeywords) {
+      function rerunLastSearch() {
+        if (lastSearch) {
+          performSearch(lastSearch.input, lastSearch.mode, { skipUiSync: true });
+        }
+      }
+
+      async function performSearch(rawInput, mode, options = {}) {
         try {
           const token = requireToken();
-          const keywords = rawKeywords
-            .split(',')
-            .map((kw) => kw.trim())
-            .filter(Boolean);
+          const selectedMode = mode || 'and';
+          const trimmed = (rawInput || '').trim();
 
-          if (!keywords.length) {
-            setStatus('Enter at least one keyword to search.', 'error');
+          if (!trimmed) {
+            setStatus('Enter at least one keyword or pattern to search.', 'error');
             return;
           }
 
-          const params = new URLSearchParams({ keywords: keywords.join(',') });
+          const params = new URLSearchParams({ keywords: trimmed, mode: selectedMode });
+          let requestValue = trimmed;
+
+          if (selectedMode === 'and') {
+            const keywords = trimmed
+              .split(',')
+              .map((kw) => kw.trim())
+              .filter(Boolean);
+
+            if (!keywords.length) {
+              setStatus('Enter at least one keyword to search.', 'error');
+              return;
+            }
+
+            requestValue = keywords.join(',');
+            params.set('keywords', requestValue);
+          } else if (selectedMode === 'regex') {
+            try {
+              new RegExp(trimmed);
+            } catch (_error) {
+              setStatus('Invalid regular expression. Please fix the pattern and try again.', 'error');
+              return;
+            }
+          } else if (selectedMode === 'wildcard') {
+            try {
+              new RegExp(wildcardPatternToRegexSource(trimmed));
+            } catch (_error) {
+              setStatus('Invalid wildcard pattern. Please fix the expression and try again.', 'error');
+              return;
+            }
+          } else {
+            setStatus('Unsupported search mode selected.', 'error');
+            return;
+          }
+
           const response = await fetch(`${origin}/search-doc?${params.toString()}`, {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -420,10 +502,30 @@
           }
 
           const data = await response.json();
-          renderResults(data.results || [], keywords);
-          lastKeywords = keywords.join(',');
+          let descriptor = null;
+
+          if (data.mode === 'regex' || data.mode === 'wildcard') {
+            descriptor = {
+              mode: data.mode,
+              pattern: data.pattern,
+              flags: data.flags,
+            };
+          } else {
+            const keywords = (data.keywords || requestValue.split(',')).map((kw) => kw.trim()).filter(Boolean);
+            descriptor = {
+              mode: 'and',
+              keywords,
+            };
+          }
+
+          renderResults(data.results || [], descriptor);
+          lastSearch = { input: requestValue, mode: selectedMode };
+
+          if (!options.skipUiSync) {
+            searchModeSelect.value = selectedMode;
+          }
         } catch (error) {
-          renderResults([], []);
+          renderResults([], null);
           console.error(error);
           setStatus(error.message, 'error');
         }
@@ -477,9 +579,7 @@
           }
 
           setStatus(`${filename} deleted successfully.`);
-          if (lastKeywords) {
-            performSearch(lastKeywords);
-          }
+          rerunLastSearch();
         } catch (error) {
           console.error(error);
           setStatus(error.message, 'error');
@@ -506,9 +606,7 @@
           }
 
           setStatus(`${file.name} uploaded successfully.`);
-          if (lastKeywords) {
-            performSearch(lastKeywords);
-          }
+          rerunLastSearch();
         } catch (error) {
           console.error(error);
           setStatus(error.message, 'error');
@@ -531,9 +629,7 @@
           }
 
           setStatus('Index rebuilt.');
-          if (lastKeywords) {
-            performSearch(lastKeywords);
-          }
+          rerunLastSearch();
         } catch (error) {
           console.error(error);
           setStatus(error.message, 'error');
@@ -649,14 +745,13 @@
       });
 
       searchBtn.addEventListener('click', () => {
-        const value = searchInput.value.trim();
-        performSearch(value);
+        performSearch(searchInput.value, searchModeSelect.value);
       });
 
       searchInput.addEventListener('keydown', (event) => {
         if (event.key === 'Enter') {
           event.preventDefault();
-          performSearch(searchInput.value.trim());
+          performSearch(searchInput.value, searchModeSelect.value);
         }
       });
 
