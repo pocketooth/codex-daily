@@ -78,6 +78,19 @@
         text-align: left;
       }
 
+      .session-controls {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+      }
+
+      #current-user {
+        margin: 0;
+        font-size: 0.95rem;
+        color: var(--muted-text);
+      }
+
       .app-grid {
         display: grid;
         gap: 1.5rem;
@@ -105,6 +118,7 @@
       }
 
       input[type='text'],
+      input[type='password'],
       select,
       button,
       table {
@@ -112,6 +126,7 @@
       }
 
       input[type='text'],
+      input[type='password'],
       select {
         padding: 0.6rem;
         border-radius: 8px;
@@ -119,6 +134,16 @@
         font-size: 1rem;
         background: var(--input-bg);
         color: var(--text);
+      }
+
+      select option {
+        background: var(--card-bg);
+        color: var(--text);
+      }
+
+      body.dark select option {
+        background: #1e293b;
+        color: #f8fafc;
       }
 
       input[type='text']::placeholder {
@@ -198,6 +223,27 @@
         padding: 0.5rem;
         border-radius: 6px;
         background: var(--match-bg);
+      }
+
+      .auth-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.65);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+        z-index: 999;
+      }
+
+      .auth-overlay.hidden {
+        display: none;
+      }
+
+      .auth-dialog {
+        max-width: 420px;
+        width: 100%;
+      }
         border-left: 3px solid var(--accent);
         font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
         white-space: pre-wrap;
@@ -308,6 +354,7 @@
       .preview-body {
         display: grid;
         gap: 1rem;
+        position: relative;
       }
 
       .preview-pane {
@@ -355,6 +402,100 @@
       .preview-card[data-mode='raw'] .preview-body,
       .preview-card[data-mode='rendered'] .preview-body {
         grid-template-columns: 1fr;
+      }
+
+      .preview-editor {
+        display: none;
+        flex-direction: column;
+        gap: 0.75rem;
+        margin-top: 1rem;
+      }
+
+      .preview-editor textarea {
+        width: 100%;
+        min-height: 260px;
+        border-radius: 10px;
+        border: 1px solid var(--border-color);
+        font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+        font-size: 0.95rem;
+        padding: 1rem;
+        background: var(--input-bg);
+        color: var(--text);
+        resize: vertical;
+      }
+
+      .preview-editor-actions {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+      }
+
+      .preview-editor-hint {
+        margin: 0;
+        font-size: 0.85rem;
+        color: var(--muted-text);
+      }
+
+      .preview-card.editing .preview-body {
+        display: none;
+      }
+
+      .preview-card.editing .preview-editor {
+        display: flex;
+      }
+
+      .preview-sync-toggle {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        border-radius: 999px;
+        border: 1px solid var(--border-color);
+        background: var(--card-bg);
+        color: var(--text);
+        padding: 0.3rem 0.65rem;
+        width: auto;
+        min-width: 80px;
+        white-space: nowrap;
+        display: none;
+        align-items: center;
+        gap: 0.3rem;
+        cursor: pointer;
+        box-shadow: 0 10px 25px var(--result-shadow);
+        z-index: 2;
+        transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.2s ease,
+          box-shadow 0.2s ease;
+      }
+
+      .preview-sync-toggle:hover,
+      .preview-sync-toggle:focus-visible {
+        transform: translate(-50%, -50%) scale(1.02);
+        box-shadow: 0 12px 28px var(--accent-hover-shadow);
+      }
+
+      .preview-sync-toggle .sync-dots {
+        display: flex;
+        gap: 0.25rem;
+      }
+
+      .preview-sync-toggle .sync-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--muted-text);
+      }
+
+      .preview-sync-toggle.active {
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+
+      .preview-sync-toggle.active .sync-dot {
+        background: var(--accent);
+      }
+
+      .preview-card[data-mode='split'] .preview-sync-toggle {
+        display: inline-flex;
       }
 
       .preview-rendered h1,
@@ -406,28 +547,30 @@
   </head>
   <body>
     <header class="app-header">
-      <h1>📄 Live Markdown Search</h1>
-      <button id="theme-toggle" class="secondary-button" type="button">🌙 Dark Mode</button>
+      <h1>Live Markdown Search</h1>
+      <div class="session-controls">
+        <p id="current-user">Not signed in</p>
+        <button id="logout-btn" class="secondary-button" type="button" disabled>Log Out</button>
+        <button id="theme-toggle" class="secondary-button" type="button">Toggle Theme</button>
+      </div>
     </header>
 
     <div id="status" class="status"></div>
+    <div id="auth-overlay" class="auth-overlay" role="dialog" aria-modal="true" aria-live="polite">
+      <article class="card auth-dialog">
+        <h2>Sign In</h2>
+        <label for="username">Username</label>
+        <input id="username" type="text" placeholder="admin, manager, or guest" autocomplete="username" />
+        <label for="password" style="margin-top: 0.75rem;">Password</label>
+        <input id="password" type="password" placeholder="Enter your password" autocomplete="current-password" />
+        <button id="login-btn" style="margin-top: 0.75rem;">Sign In</button>
+        <p style="margin-top: 0.75rem; font-size: 0.85rem; color: var(--muted-text);">
+          Default passwords follow <code>username_123!</code>.
+        </p>
+      </article>
+    </div>
 
     <section class="app-grid">
-      <article class="card" id="login-card">
-        <h2>Login</h2>
-        <label for="username">Username</label>
-        <input id="username" type="text" placeholder="e.g. Alice" />
-
-        <label for="role">Role</label>
-        <select id="role">
-          <option value="viewer">Viewer</option>
-          <option value="editor">Editor</option>
-          <option value="admin">Admin</option>
-        </select>
-
-        <button id="login-btn">🔐 Login / Get Token</button>
-        <p id="current-user" style="margin-top: 0.75rem; font-size: 0.9rem; color: #374151;"></p>
-      </article>
 
       <article class="card" id="search-card">
         <h2>Search Markdown</h2>
@@ -487,6 +630,7 @@
             <button type="button" class="preview-mode-button" data-preview-mode="rendered">Markdown</button>
             <button type="button" class="preview-mode-button" data-preview-mode="split">Split</button>
           </div>
+          <button id="edit-preview-btn" class="secondary-button" type="button" style="display:none;">Edit File</button>
           <button id="close-preview" class="secondary-button" type="button">✖ Close</button>
         </div>
       </div>
@@ -494,6 +638,28 @@
       <div id="preview-body" class="preview-body">
         <pre id="preview-content-raw" class="preview-pane preview-raw"></pre>
         <article id="preview-content-rendered" class="preview-pane preview-rendered"></article>
+        <button
+          id="preview-sync-toggle"
+          class="preview-sync-toggle"
+          type="button"
+          aria-pressed="true"
+          title="Toggle synchronized scrolling"
+        >
+          <span class="sync-dots">
+            <span class="sync-dot"></span>
+            <span class="sync-dot"></span>
+            <span class="sync-dot"></span>
+          </span>
+          <span class="sync-label">Sync</span>
+        </button>
+      </div>
+      <div id="preview-editor" class="preview-editor" aria-hidden="true">
+        <textarea id="preview-editor-input" spellcheck="false"></textarea>
+        <div class="preview-editor-actions">
+          <button id="preview-save-btn" type="button">Save Changes</button>
+          <button id="preview-cancel-btn" type="button" class="secondary-button">Cancel</button>
+        </div>
+        <p class="preview-editor-hint">Saving overwrites the existing Markdown file and rebuilds the search index.</p>
       </div>
     </section>
 
@@ -501,12 +667,15 @@
       Built for the University Coding Challenge 2025 • Live updates powered by Socket.IO
     </footer>
 
-    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js" integrity="sha384-AbQ7+wzCTsRmR271GGBqBPdZiZsaAJ+lZeXqIuAv89xDSHLVYDBlnJrped1IovnE" crossorigin="anonymous"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script>
       const statusEl = document.getElementById('status');
       const loginBtn = document.getElementById('login-btn');
-      const roleSelect = document.getElementById('role');
+      const logoutBtn = document.getElementById('logout-btn');
+      const usernameInput = document.getElementById('username');
+      const passwordInput = document.getElementById('password');
+      const authOverlay = document.getElementById('auth-overlay');
       const searchBtn = document.getElementById('search-btn');
       const uploadBtn = document.getElementById('upload-btn');
       const reindexBtn = document.getElementById('reindex-btn');
@@ -524,17 +693,32 @@
       const previewMetaEl = document.getElementById('preview-meta');
       const previewRawEl = document.getElementById('preview-content-raw');
       const previewRenderedEl = document.getElementById('preview-content-rendered');
+      const previewSyncToggleBtn = document.getElementById('preview-sync-toggle');
       const previewModeButtons = Array.from(document.querySelectorAll('[data-preview-mode]'));
+      const previewEditBtn = document.getElementById('edit-preview-btn');
+      const previewEditor = document.getElementById('preview-editor');
+      const previewEditorInput = document.getElementById('preview-editor-input');
+      const previewSaveBtn = document.getElementById('preview-save-btn');
+      const previewCancelBtn = document.getElementById('preview-cancel-btn');
       const closePreviewBtn = document.getElementById('close-preview');
 
-      const allowedRoles = ['viewer', 'editor', 'admin'];
       const previewModes = ['raw', 'rendered', 'split'];
       const previewModeStorageKey = 'md-preview-mode';
+      const previewSyncStorageKey = 'md-preview-sync';
+      const tokenStorageKey = 'md-search-token';
+      const userStorageKey = 'md-search-user';
       const storedPreviewMode = localStorage.getItem(previewModeStorageKey);
+      const storedSyncPref = localStorage.getItem(previewSyncStorageKey);
       let currentPreviewMode = previewModes.includes(storedPreviewMode) ? storedPreviewMode : 'split';
+      let syncPreviewScroll = storedSyncPref ? storedSyncPref === 'true' : true;
+      let syncingScroll = false;
       let authToken = null;
       let userProfile = null;
       let lastSearch = null;
+      let activeDescriptor = null;
+      let currentPreviewFilename = null;
+      let currentPreviewContent = '';
+      let isEditingPreview = false;
       let socket = null;
       let statusTimeoutId = null;
       let historyRecords = [];
@@ -545,21 +729,85 @@
         ? window.location.origin
         : 'http://localhost:3000';
 
-      function populateRoleOptions() {
-        if (!roleSelect) return;
-        const previous = roleSelect.value;
-        roleSelect.innerHTML = '';
-        allowedRoles.forEach((role) => {
-          const option = document.createElement('option');
-          option.value = role;
-          option.textContent = `${role.charAt(0).toUpperCase()}${role.slice(1)}`;
-          roleSelect.appendChild(option);
-        });
-        const desired = allowedRoles.includes(previous) ? previous : allowedRoles[0];
-        roleSelect.value = desired;
+      function setAuthenticatedState(isAuthenticated) {
+        if (authOverlay) {
+          authOverlay.classList.toggle('hidden', isAuthenticated);
+        }
+        document.body.classList.toggle('auth-locked', !isAuthenticated);
+        if (logoutBtn) {
+          logoutBtn.disabled = !isAuthenticated;
+        }
+        updatePreviewEditControls();
       }
 
-      populateRoleOptions();
+      function persistSession(token, profile) {
+        localStorage.setItem(tokenStorageKey, token);
+        localStorage.setItem(userStorageKey, JSON.stringify(profile));
+      }
+
+      function clearSession({ silent } = {}) {
+        authToken = null;
+        userProfile = null;
+        lastSearch = null;
+        localStorage.removeItem(tokenStorageKey);
+        localStorage.removeItem(userStorageKey);
+        if (socket) {
+          socket.disconnect();
+          socket = null;
+        }
+        currentUserEl.textContent = 'Not signed in';
+        historyRecords = [];
+        historyLoaded = false;
+        historyContainer.innerHTML = '';
+        historyFilterInput.value = '';
+        renderResults([], null);
+        currentPreviewFilename = null;
+        currentPreviewContent = '';
+        exitPreviewEditMode({ silent: true });
+        hidePreview();
+        updateRoleControls();
+        setAuthenticatedState(false);
+        if (!silent) {
+          setStatus('Please sign in to continue.', 'info');
+        }
+      }
+
+      function handleAuthFailure(response) {
+        if (response && response.status === 401) {
+          clearSession({ silent: true });
+          throw new Error('Session expired. Please sign in again.');
+        }
+      }
+
+      async function initializeAuth() {
+        const storedToken = localStorage.getItem(tokenStorageKey);
+        if (!storedToken) {
+          setAuthenticatedState(false);
+          return;
+        }
+        authToken = storedToken;
+        try {
+          const response = await fetch(`${origin}/session`, {
+            headers: {
+              Authorization: `Bearer ${storedToken}`,
+            },
+          });
+          if (!response.ok) {
+            throw new Error('Session expired.');
+          }
+          const data = await response.json();
+          userProfile = data.user;
+          persistSession(storedToken, userProfile);
+          currentUserEl.textContent = `Logged in as ${userProfile.user} (${userProfile.role})`;
+          setAuthenticatedState(true);
+          updateRoleControls();
+          connectSocket();
+          rerunLastSearch();
+        } catch (error) {
+          console.error(error);
+          clearSession({ silent: true });
+        }
+      }
 
       if (window.marked && typeof window.marked.setOptions === 'function') {
         window.marked.setOptions({ breaks: true, gfm: true });
@@ -608,19 +856,40 @@
           localStorage.setItem(previewModeStorageKey, currentPreviewMode);
         }
         updatePreviewModeButtons();
+        updateSyncToggle();
       }
 
       function renderPreviewContent(content) {
         if (!previewRawEl || !previewRenderedEl) return;
         const value = typeof content === 'string' ? content : '';
-        previewRawEl.textContent = value || '(empty file)';
+        currentPreviewContent = value;
         if (value) {
+          const escaped = escapeHtml(value);
+          previewRawEl.innerHTML = activeDescriptor ? highlightMatches(escaped, activeDescriptor) : escaped;
           previewRenderedEl.innerHTML = renderMarkdown(value);
+          if (activeDescriptor) {
+            highlightHtmlContainer(previewRenderedEl, activeDescriptor);
+          }
         } else {
+          previewRawEl.innerHTML = '<span style="color: var(--muted-text);">(empty file)</span>';
           previewRenderedEl.innerHTML = '<p style="color: var(--muted-text);">(empty file)</p>';
         }
         previewRawEl.scrollTop = 0;
         previewRenderedEl.scrollTop = 0;
+      }
+
+      function updateSyncToggle() {
+        if (!previewSyncToggleBtn) {
+          return;
+        }
+        const isSplit = currentPreviewMode === 'split';
+        previewSyncToggleBtn.disabled = !isSplit;
+        previewSyncToggleBtn.classList.toggle('active', syncPreviewScroll && isSplit);
+        previewSyncToggleBtn.setAttribute('aria-pressed', syncPreviewScroll && isSplit ? 'true' : 'false');
+        previewSyncToggleBtn.setAttribute(
+          'title',
+          syncPreviewScroll && isSplit ? 'Click to disable synchronized scrolling' : 'Click to enable synchronized scrolling'
+        );
       }
 
       setPreviewMode(currentPreviewMode, { persist: false });
@@ -631,6 +900,26 @@
           setPreviewMode(mode);
         });
       });
+
+      if (previewRawEl) {
+        previewRawEl.addEventListener('scroll', () => syncScrollPositions(previewRawEl, previewRenderedEl));
+      }
+
+      if (previewRenderedEl) {
+        previewRenderedEl.addEventListener('scroll', () => syncScrollPositions(previewRenderedEl, previewRawEl));
+      }
+
+      if (previewSyncToggleBtn) {
+        previewSyncToggleBtn.addEventListener('click', () => {
+          if (currentPreviewMode !== 'split') {
+            setStatus('Switch to split view to sync scrolling.', 'info');
+            return;
+          }
+          syncPreviewScroll = !syncPreviewScroll;
+          localStorage.setItem(previewSyncStorageKey, String(syncPreviewScroll));
+          updateSyncToggle();
+        });
+      }
 
       function setStatus(message, type = 'info', duration = 3000) {
         statusEl.textContent = message;
@@ -663,7 +952,9 @@
         const normalized = theme === 'dark' ? 'dark' : 'light';
         document.body.classList.toggle('dark', normalized === 'dark');
         localStorage.setItem('md-search-theme', normalized);
-        themeToggleBtn.textContent = normalized === 'dark' ? '🌞 Light Mode' : '🌙 Dark Mode';
+        if (themeToggleBtn) {
+          themeToggleBtn.textContent = normalized === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode';
+        }
       }
 
       function toggleTheme() {
@@ -683,6 +974,7 @@
 
       function requireToken() {
         if (!authToken) {
+          setAuthenticatedState(false);
           setStatus('Please log in to continue.', 'error');
           throw new Error('Missing token');
         }
@@ -690,14 +982,25 @@
       }
 
       function updateRoleControls() {
+        const isAuthenticated = Boolean(userProfile);
         const role = userProfile?.role;
         const isEditorOrAdmin = role === 'editor' || role === 'admin';
         const isAdmin = role === 'admin';
 
-        uploadBtn.disabled = !isEditorOrAdmin;
-        reindexBtn.disabled = !isAdmin;
-        historyBtn.disabled = !isAdmin;
-        historyFilterInput.disabled = !isAdmin;
+        if (currentUserEl) {
+          currentUserEl.textContent = isAuthenticated
+            ? `Logged in as ${userProfile.user} (${role})`
+            : 'Not signed in';
+        }
+
+        uploadBtn.disabled = !isAuthenticated || !isEditorOrAdmin;
+        reindexBtn.disabled = !isAuthenticated || !isAdmin;
+        historyBtn.disabled = !isAuthenticated || !isAdmin;
+        historyFilterInput.disabled = !isAuthenticated || !isAdmin;
+        if (logoutBtn) {
+          logoutBtn.disabled = !isAuthenticated;
+        }
+
         if (!isAdmin) {
           historyFilterInput.value = '';
           historyRecords = [];
@@ -706,6 +1009,7 @@
         } else if (!historyLoaded && historyContainer.innerHTML.trim() === '') {
           renderHistoryTable();
         }
+        updatePreviewEditControls();
       }
 
       function wildcardPatternToRegexSource(pattern) {
@@ -752,7 +1056,166 @@
         return text;
       }
 
+      function highlightHtmlContainer(container, descriptor) {
+        if (!descriptor || !container) {
+          return;
+        }
+        const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
+        const textNodes = [];
+        let current;
+        while ((current = walker.nextNode())) {
+          if (current.parentElement && current.parentElement.tagName === 'SCRIPT') {
+            continue;
+          }
+          textNodes.push(current);
+        }
+        textNodes.forEach((node) => {
+          const original = node.textContent;
+          if (!original?.trim()) {
+            return;
+          }
+          const escaped = escapeHtml(original);
+          const highlighted = highlightMatches(escaped, descriptor);
+          if (highlighted === escaped) {
+            return;
+          }
+          const temp = document.createElement('span');
+          temp.innerHTML = highlighted;
+          const fragment = document.createDocumentFragment();
+          while (temp.firstChild) {
+            fragment.appendChild(temp.firstChild);
+          }
+          if (node.parentNode) {
+            node.parentNode.replaceChild(fragment, node);
+          }
+        });
+      }
+
+      function canEditPreview() {
+        const role = userProfile?.role;
+        return role === 'editor' || role === 'admin';
+      }
+
+      function updatePreviewEditControls() {
+        if (!previewEditBtn) {
+          return;
+        }
+        const canEdit = canEditPreview();
+        previewEditBtn.style.display = canEdit ? 'inline-flex' : 'none';
+        const hasFile = Boolean(currentPreviewFilename);
+        previewEditBtn.disabled = !canEdit || !hasFile || isEditingPreview;
+        if (!canEdit && isEditingPreview) {
+          exitPreviewEditMode({ refresh: false });
+        }
+      }
+
+      function enterPreviewEditMode() {
+        if (!canEditPreview()) {
+          setStatus('Editor or admin role required to edit files.', 'error');
+          return;
+        }
+        if (!currentPreviewFilename) {
+          setStatus('Open a file to edit.', 'error');
+          return;
+        }
+        isEditingPreview = true;
+        previewSection?.classList.add('editing');
+        if (previewEditor) {
+          previewEditor.setAttribute('aria-hidden', 'false');
+        }
+        if (previewEditorInput) {
+          previewEditorInput.value = currentPreviewContent || '';
+          previewEditorInput.focus();
+        }
+        updatePreviewEditControls();
+      }
+
+      function exitPreviewEditMode(options = {}) {
+        if (!previewSection) {
+          return;
+        }
+        isEditingPreview = false;
+        previewSection.classList.remove('editing');
+        if (previewEditor) {
+          previewEditor.setAttribute('aria-hidden', 'true');
+        }
+        if (previewEditorInput && !options.keepDraft) {
+          previewEditorInput.value = '';
+        }
+        if (options.refresh !== false && currentPreviewContent) {
+          renderPreviewContent(currentPreviewContent);
+        }
+        updatePreviewEditControls();
+      }
+
+      async function savePreviewEdits() {
+        try {
+          if (!canEditPreview()) {
+            setStatus('Editor or admin role required to edit files.', 'error');
+            return;
+          }
+          if (!currentPreviewFilename) {
+            setStatus('No file selected for editing.', 'error');
+            return;
+          }
+          const token = requireToken();
+          const nextContent = previewEditorInput?.value ?? '';
+          const originalLabel = previewSaveBtn?.textContent;
+          if (previewSaveBtn) {
+            previewSaveBtn.disabled = true;
+            previewSaveBtn.textContent = 'Saving...';
+          }
+          const response = await fetch(`${origin}/edit-doc/${encodeURIComponent(currentPreviewFilename)}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ content: nextContent }),
+          });
+          if (!response.ok) {
+            handleAuthFailure(response);
+            const error = await response.json().catch(() => ({ message: 'Save failed.' }));
+            throw new Error(error.message || 'Save failed.');
+          }
+          currentPreviewContent = nextContent;
+          setStatus('File saved successfully.');
+          exitPreviewEditMode({ refresh: true });
+          previewFile(currentPreviewFilename);
+          rerunLastSearch();
+        } catch (error) {
+          console.error(error);
+          setStatus(error.message, 'error');
+        } finally {
+          if (previewSaveBtn) {
+            previewSaveBtn.disabled = false;
+            previewSaveBtn.textContent = originalLabel || 'Save Changes';
+          }
+        }
+      }
+
+      function syncScrollPositions(source, target) {
+        if (!syncPreviewScroll || syncingScroll || currentPreviewMode !== 'split') {
+          return;
+        }
+        if (!source || !target) {
+          return;
+        }
+        const sourceMax = source.scrollHeight - source.clientHeight;
+        if (sourceMax <= 0) {
+          return;
+        }
+        const targetMax = target.scrollHeight - target.clientHeight;
+        syncingScroll = true;
+        const ratio = source.scrollTop / sourceMax;
+        target.scrollTop = ratio * targetMax;
+        requestAnimationFrame(() => {
+          syncingScroll = false;
+        });
+      }
+
       function renderResults(items, descriptor) {
+        activeDescriptor = descriptor || null;
         resultsEl.innerHTML = '';
         if (!items.length) {
           resultsEl.innerHTML = '<p style="color:var(--muted-text);">No matches yet. Try another search.</p>';
@@ -822,24 +1285,31 @@
       }
 
       function hidePreview() {
+        exitPreviewEditMode({ refresh: false });
         previewSection.style.display = 'none';
         previewFilenameEl.textContent = '';
         previewMetaEl.textContent = '';
         if (previewRawEl) {
-          previewRawEl.textContent = '';
+          previewRawEl.innerHTML = '';
         }
         if (previewRenderedEl) {
           previewRenderedEl.innerHTML = '';
         }
+        currentPreviewFilename = null;
+        currentPreviewContent = '';
+        updatePreviewEditControls();
       }
 
       function showPreview(data) {
+        exitPreviewEditMode({ refresh: false, keepDraft: true });
+        currentPreviewFilename = data.filename;
         previewFilenameEl.textContent = data.filename;
         const lineLabel = data.lineCount === 1 ? '1 line' : `${data.lineCount} lines`;
-        previewMetaEl.textContent = `${lineLabel} • ${formatFileSize(data.size || 0)}`;
+        previewMetaEl.textContent = `${lineLabel} �?� ${formatFileSize(data.size || 0)}`;
         renderPreviewContent(data.content || '');
         previewSection.style.display = 'block';
         setPreviewMode(currentPreviewMode, { persist: false });
+        updatePreviewEditControls();
       }
 
       async function previewFile(filename) {
@@ -852,6 +1322,7 @@
           });
 
           if (!response.ok) {
+            handleAuthFailure(response);
             const error = await response.json().catch(() => ({ message: 'Preview failed.' }));
             throw new Error(error.message || 'Preview failed.');
           }
@@ -865,6 +1336,9 @@
       }
 
       function connectSocket() {
+        if (!authToken) {
+          return;
+        }
         if (socket) {
           socket.disconnect();
         }
@@ -970,6 +1444,7 @@
           });
 
           if (!response.ok) {
+            handleAuthFailure(response);
             const error = await response.json().catch(() => ({ message: 'Search failed.' }));
             throw new Error(error.message || 'Search failed.');
           }
@@ -1014,6 +1489,7 @@
           });
 
           if (!response.ok) {
+            handleAuthFailure(response);
             const error = await response.json().catch(() => ({ message: 'Download failed.' }));
             throw new Error(error.message || 'Download failed.');
           }
@@ -1047,6 +1523,7 @@
           });
 
           if (!response.ok) {
+            handleAuthFailure(response);
             const error = await response.json().catch(() => ({ message: 'Delete failed.' }));
             throw new Error(error.message || 'Delete failed.');
           }
@@ -1077,6 +1554,7 @@
           });
 
           if (!response.ok) {
+            handleAuthFailure(response);
             const error = await response.json().catch(() => ({ message: 'Upload failed.' }));
             throw new Error(error.message || 'Upload failed.');
           }
@@ -1100,6 +1578,7 @@
           });
 
           if (!response.ok) {
+            handleAuthFailure(response);
             const error = await response.json().catch(() => ({ message: 'Reindex failed.' }));
             throw new Error(error.message || 'Reindex failed.');
           }
@@ -1215,6 +1694,7 @@
           });
 
           if (!response.ok) {
+            handleAuthFailure(response);
             const error = await response.json().catch(() => ({ message: 'History failed.' }));
             throw new Error(error.message || 'Could not load history.');
           }
@@ -1232,23 +1712,24 @@
         }
       }
 
-      loginBtn.addEventListener('click', async () => {
+      async function attemptLogin() {
         try {
-          const username = document.getElementById('username').value.trim();
-          const role = roleSelect.value;
+          const username = (usernameInput?.value || '').trim();
+          const password = passwordInput?.value || '';
 
-          if (!username) {
-            setStatus('Enter a username.', 'error');
+          if (!username || !password) {
+            setStatus('Enter your username and password.', 'error');
             return;
           }
 
-          if (!allowedRoles.includes(role)) {
-            setStatus('Select a valid role.', 'error');
-            return;
-          }
+          const response = await fetch(`${origin}/login`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ username, password }),
+          });
 
-          const params = new URLSearchParams({ user: username, role });
-          const response = await fetch(`${origin}/get-token?${params.toString()}`);
           if (!response.ok) {
             const error = await response.json().catch(() => ({ message: 'Login failed.' }));
             throw new Error(error.message || 'Login failed.');
@@ -1256,16 +1737,45 @@
 
           const data = await response.json();
           authToken = data.token;
-          userProfile = { user: username, role };
-          currentUserEl.textContent = `Logged in as ${username} (${role})`;
+          userProfile = data.user;
+          persistSession(authToken, userProfile);
+          if (passwordInput) {
+            passwordInput.value = '';
+          }
+          currentUserEl.textContent = `Logged in as ${userProfile.user} (${userProfile.role})`;
           setStatus('Login successful. Token stored.');
+          setAuthenticatedState(true);
           updateRoleControls();
           connectSocket();
+          rerunLastSearch();
         } catch (error) {
           console.error(error);
           setStatus(error.message, 'error');
         }
+      }
+
+      if (loginBtn) {
+        loginBtn.addEventListener('click', () => {
+          attemptLogin();
+        });
+      }
+
+      [usernameInput, passwordInput].forEach((input) => {
+        if (!input) return;
+        input.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter') {
+            event.preventDefault();
+            attemptLogin();
+          }
+        });
       });
+
+      if (logoutBtn) {
+        logoutBtn.addEventListener('click', () => {
+          clearSession({ silent: true });
+          setStatus('Logged out.');
+        });
+      }
 
       searchBtn.addEventListener('click', () => {
         performSearch(searchInput.value, searchModeSelect.value);
@@ -1325,7 +1835,34 @@
         hidePreview();
       });
 
+      if (previewEditBtn) {
+        previewEditBtn.addEventListener('click', () => {
+          if (isEditingPreview) {
+            exitPreviewEditMode();
+          } else {
+            enterPreviewEditMode();
+          }
+        });
+      }
+
+      if (previewCancelBtn) {
+        previewCancelBtn.addEventListener('click', () => {
+          exitPreviewEditMode({ refresh: true });
+        });
+      }
+
+      if (previewSaveBtn) {
+        previewSaveBtn.addEventListener('click', () => {
+          savePreviewEdits();
+        });
+      }
+
+      setAuthenticatedState(false);
+      initializeAuth();
+
       updateRoleControls();
     </script>
   </body>
 </html>
+
+

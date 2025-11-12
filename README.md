@@ -4,15 +4,14 @@ A full-stack demo application for searching, uploading, downloading, and managin
 
 ## Features
 
-- 🔐 JWT-based authentication with viewer, editor, and admin roles
-- 🔎 Fuzzy Markdown search with AND, regex, and wildcard modes powered by Fuse.js
-- ⬆️ Upload, ⬇️ download, and 🗑️ delete Markdown files
-- 📡 Real-time notifications when files change or the index rebuilds
-- 📝 Upload history tracking for administrators
-- 🌐 Simple HTML/CSS/JavaScript frontend with Socket.IO live updates
-- 👀 In-browser Markdown preview with raw/markdown/split modes and automatic refresh on file changes
-- 🔦 Live search filter on the upload history table
-- 🌗 Dark/light mode toggle with persistence
+- Role-based authentication with built-in viewer, editor, and admin accounts.
+- Secure JWT issuance via POST /login plus /session validation for auto-restore.
+- Fuzzy Markdown search (AND, regex, wildcard) powered by Fuse.js.
+- Upload, download, delete, preview, and inline edit Markdown files (editors/admins).
+- Real-time file change notifications via Socket.IO, including preview auto-refresh.
+- Upload history tracking with live filtering (admin only).
+- Split preview with optional synchronized scrolling and Markdown rendering via Marked.
+- Dark/light theme toggle with persistence across visits.
 
 ## Getting Started
 
@@ -34,22 +33,39 @@ A full-stack demo application for searching, uploading, downloading, and managin
 
 3. **Open the app**
 
-   Navigate to `http://localhost:3000` in your browser. Use the login panel to request a JWT for the desired role.
+   Navigate to `http://localhost:3000` in your browser. Sign in with one of the seeded accounts (passwords follow `username_123!`):
+
+   | Username | Role   | Password      |
+   | -------- | ------ | ------------- |
+   | `admin`  | admin  | `admin_123!`  |
+   | `manager`| editor | `manager_123!`|
+   | `guest`  | viewer | `guest_123!`  |
+
+   Editors and admins can upload and edit Markdown directly from the preview panel; viewers have read-only access.
 
 ## API Reference
 
 | Method | Endpoint | Description | Role |
 | ------ | -------- | ----------- | ---- |
-| `GET` | `/get-token?user=Alice&role=viewer` | Issue a short-lived JWT. | Public |
+| `POST` | `/login` | Exchange username/password for a JWT (8h expiry). | Public |
+| `GET` | `/session` | Validate a stored JWT and return the active profile. | Viewer+ |
 | `GET` | `/search-doc?keywords=socket,live&mode=and` | Search Markdown lines (supports AND, regex, and wildcard modes). | Viewer+ |
-| `POST` | `/upload-doc` | Upload a `.md` file (form field `file`). | Editor/Admin |
-| `GET` | `/download-doc/:filename` | Download a Markdown file. | Viewer+ |
 | `GET` | `/preview-doc/:filename` | Return Markdown content and metadata for preview. | Viewer+ |
+| `GET` | `/download-doc/:filename` | Download a Markdown file. | Viewer+ |
+| `POST` | `/upload-doc` | Upload a `.md` file (form field `file`). | Editor/Admin |
+| `PUT` | `/edit-doc/:filename` | Overwrite a Markdown file with JSON `{ content }`. | Editor/Admin |
 | `DELETE` | `/delete-doc/:filename` | Delete a Markdown file. | Admin |
 | `GET` | `/upload-history` | View upload audit log. | Admin |
 | `POST` | `/force-reindex` | Manually rebuild the search index. | Admin |
 
 All authenticated routes expect an `Authorization: Bearer <token>` header.
+
+## Preview Editing & Sync
+
+- Click **Preview** on any search hit to open the side-by-side viewer.
+- Editors and admins will see an **Edit File** button. Toggling it reveals an in-browser editor that can save straight back to disk (and automatically rebuilds the search index).
+- The split preview offers a floating **Sync** toggle so you can lock scrolling between raw and rendered panes or turn it off for independent scrolling.
+- Live Socket.IO events automatically refresh any open preview or rerun the last search when a file changes.
 
 ## Project Structure
 
@@ -79,3 +95,4 @@ All authenticated routes expect an `Authorization: Bearer <token>` header.
 ## License
 
 This project is provided as part of the University Coding Challenge 2025 practice scenario.
+

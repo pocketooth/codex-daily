@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const http = require('http');
+const crypto = require('crypto');
 const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
@@ -13,6 +14,12 @@ const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'markdown-search-secret';
 const DOCS_DIR = path.join(__dirname, 'docs');
 const UPLOAD_LOG = path.join(__dirname, 'uploads.json');
+
+const initialUsers = [
+  { username: 'admin', role: 'admin', password: 'admin_123!' },
+  { username: 'manager', role: 'editor', password: 'manager_123!' },
+  { username: 'guest', role: 'viewer', password: 'guest_123!' },
+];
 
 const app = express();
 const server = http.createServer(app);
@@ -36,6 +43,26 @@ if (!fs.existsSync(UPLOAD_LOG)) {
 
 let fuseIndex = null;
 let searchableLines = [];
+
+function hashPassword(password, salt = crypto.randomBytes(16).toString('hex')) {
+  const derived = crypto.pbkdf2Sync(password, salt, 100000, 64, 'sha512');
+  return { salt, hash: derived.toString('hex') };
+}
+
+function verifyPassword(password, userRecord) {
+  const derived = crypto.pbkdf2Sync(password, userRecord.salt, 100000, 64, 'sha512');
+  const existing = Buffer.from(userRecord.hash, 'hex');
+  if (derived.length !== existing.length) {
+    return false;
+  }
+  return crypto.timingSafeEqual(derived, existing);
+}
+
+const users = new Map();
+initialUsers.forEach(({ username, role, password }) => {
+  const { salt, hash } = hashPassword(password);
+  users.set(username.toLowerCase(), { username, role, salt, hash });
+});
 
 const fuseOptions = {
   includeScore: true,
@@ -190,17 +217,24 @@ app.get('/', (_req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-app.get('/get-token', (req, res) => {
-  const { user, role } = req.query;
-  const allowedRoles = ['viewer', 'editor', 'admin'];
-  if (!user || !role) {
-    return res.status(400).json({ message: 'User and role are required.' });
+app.post('/login', (req, res) => {
+  const { username, password } = req.body || {};
+  if (!username || !password) {
+    return res.status(400).json({ message: 'Username and password are required.' });
   }
-  if (!allowedRoles.includes(role)) {
-    return res.status(400).json({ message: 'Invalid role requested.' });
+  const record = users.get(String(username).toLowerCase());
+  if (!record || !verifyPassword(password, record)) {
+    return res.status(401).json({ message: 'Invalid username or password.' });
   }
-  const token = jwt.sign({ user, role }, JWT_SECRET, { expiresIn: '8h' });
-  res.json({ token });
+
+  const payload = { user: record.username, role: record.role };
+  const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '8h' });
+
+  res.json({ token, user: payload });
+});
+
+app.get('/session', authenticate, (req, res) => {
+  res.json({ user: req.user });
 });
 
 app.get('/search-doc', authenticate, (req, res) => {
@@ -322,6 +356,32 @@ app.post('/upload-doc', authenticate, authorize(['editor', 'admin']), (req, res)
 
     res.json({ message: 'File uploaded successfully.', entry: logEntry });
   });
+});
+
+app.put('/edit-doc/:filename', authenticate, authorize(['editor', 'admin']), (req, res) => {
+  const safeName = sanitizeFilename(req.params.filename);
+  if (!safeName) {
+    return res.status(400).json({ message: 'Invalid filename.' });
+  }
+  const filePath = path.join(DOCS_DIR, safeName);
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ message: 'File not found.' });
+  }
+
+  const { content } = req.body || {};
+  if (typeof content !== 'string') {
+    return res.status(400).json({ message: 'File content is required.' });
+  }
+
+  try {
+    fs.writeFileSync(filePath, content, 'utf-8');
+    buildIndex();
+    io.emit('file_changed', { event: 'edited', filename: safeName, user: req.user });
+    res.json({ message: 'File saved successfully.' });
+  } catch (error) {
+    console.error('Failed to edit file', error);
+    res.status(500).json({ message: 'Unable to save file.' });
+  }
 });
 
 app.get('/download-doc/:filename', authenticate, (req, res) => {
