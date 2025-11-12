@@ -336,6 +336,32 @@ app.get('/download-doc/:filename', authenticate, (req, res) => {
   res.download(filePath);
 });
 
+app.get('/preview-doc/:filename', authenticate, (req, res) => {
+  const safeName = sanitizeFilename(req.params.filename);
+  if (!safeName) {
+    return res.status(400).json({ message: 'Invalid filename.' });
+  }
+
+  const filePath = path.join(DOCS_DIR, safeName);
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ message: 'File not found.' });
+  }
+
+  try {
+    const content = fs.readFileSync(filePath, 'utf-8');
+    const lineCount = content === '' ? 0 : content.split(/\r?\n/).length;
+    res.json({
+      filename: safeName,
+      content,
+      lineCount,
+      size: Buffer.byteLength(content, 'utf-8'),
+    });
+  } catch (error) {
+    console.error('Failed to preview file', error);
+    res.status(500).json({ message: 'Unable to read file.' });
+  }
+});
+
 app.delete('/delete-doc/:filename', authenticate, authorize(['admin']), (req, res) => {
   const safeName = sanitizeFilename(req.params.filename);
   if (!safeName) {

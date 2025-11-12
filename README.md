@@ -10,6 +10,9 @@ A full-stack demo application for searching, uploading, downloading, and managin
 - 📡 Real-time notifications when files change or the index rebuilds
 - 📝 Upload history tracking for administrators
 - 🌐 Simple HTML/CSS/JavaScript frontend with Socket.IO live updates
+- 👀 In-browser Markdown preview with automatic refresh on file changes
+- 🔦 Live search filter on the upload history table
+- 🌗 Dark/light mode toggle with persistence
 
 ## Getting Started
 
@@ -41,6 +44,7 @@ A full-stack demo application for searching, uploading, downloading, and managin
 | `GET` | `/search-doc?keywords=socket,live&mode=and` | Search Markdown lines (supports AND, regex, and wildcard modes). | Viewer+ |
 | `POST` | `/upload-doc` | Upload a `.md` file (form field `file`). | Editor/Admin |
 | `GET` | `/download-doc/:filename` | Download a Markdown file. | Viewer+ |
+| `GET` | `/preview-doc/:filename` | Return Markdown content and metadata for preview. | Viewer+ |
 | `DELETE` | `/delete-doc/:filename` | Delete a Markdown file. | Admin |
 | `GET` | `/upload-history` | View upload audit log. | Admin |
 | `POST` | `/force-reindex` | Manually rebuild the search index. | Admin |
@@ -68,6 +72,9 @@ All authenticated routes expect an `Authorization: Bearer <token>` header.
   - `and` (default): comma-separated keywords must all appear in a matching line.
   - `regex`: full JavaScript regular expressions with operators such as `|` for OR.
   - `wildcard`: simple patterns using `*` (any sequence), `?` (single character), and `|` for alternation.
+- Use the preview button to inspect Markdown content without downloading; previews update automatically when the underlying file changes.
+- Admins can type in the history filter field to instantly narrow the upload log by filename, user, role, or timestamp.
+- Toggle light and dark themes via the header button—your selection is remembered across visits.
 
 ## License
 

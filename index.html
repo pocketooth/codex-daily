@@ -7,21 +7,75 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" />
     <style>
       :root {
-        color-scheme: light dark;
         font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-        background-color: #f3f4f6;
-        color: #111827;
+        color-scheme: light;
+        --bg: #f3f4f6;
+        --text: #111827;
+        --card-bg: #ffffff;
+        --muted-text: #6b7280;
+        --accent: #2563eb;
+        --accent-hover-shadow: rgba(37, 99, 235, 0.2);
+        --button-disabled: #9ca3af;
+        --card-shadow: rgba(15, 23, 42, 0.08);
+        --result-shadow: rgba(15, 23, 42, 0.1);
+        --match-bg: #f9fafb;
+        --status-info-bg: #eef2ff;
+        --status-info-text: #1e3a8a;
+        --status-error-bg: #fee2e2;
+        --status-error-text: #991b1b;
+        --border-color: #d1d5db;
+        --table-border: #e5e7eb;
+        --mark-bg: #f59e0b;
+        --mark-text: inherit;
+        --preview-bg: #0b1120;
+        --input-bg: #ffffff;
       }
 
       body {
         margin: 0;
         padding: 2rem;
-        background: var(--body-bg, #f3f4f6);
+        background: var(--bg);
+        color: var(--text);
+        transition: background 0.2s ease, color 0.2s ease;
+      }
+
+      body.dark {
+        color-scheme: dark;
+        --bg: #0f172a;
+        --text: #f8fafc;
+        --card-bg: #1e293b;
+        --muted-text: #94a3b8;
+        --accent: #60a5fa;
+        --accent-hover-shadow: rgba(96, 165, 250, 0.35);
+        --button-disabled: #475569;
+        --card-shadow: rgba(15, 23, 42, 0.45);
+        --result-shadow: rgba(15, 23, 42, 0.65);
+        --match-bg: rgba(148, 163, 184, 0.18);
+        --status-info-bg: rgba(96, 165, 250, 0.18);
+        --status-info-text: #dbeafe;
+        --status-error-bg: rgba(248, 113, 113, 0.16);
+        --status-error-text: #fecaca;
+        --border-color: #475569;
+        --table-border: #334155;
+        --mark-bg: #facc15;
+        --mark-text: #111827;
+        --preview-bg: #020617;
+        --input-bg: rgba(148, 163, 184, 0.12);
+      }
+
+      .app-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+        flex-wrap: wrap;
       }
 
       h1 {
-        text-align: center;
-        margin-bottom: 1.5rem;
+        margin: 0;
+        flex: 1 1 auto;
+        text-align: left;
       }
 
       .app-grid {
@@ -32,10 +86,10 @@
       }
 
       .card {
-        background: #ffffff;
+        background: var(--card-bg);
         border-radius: 12px;
         padding: 1.5rem;
-        box-shadow: 0 15px 35px rgba(15, 23, 42, 0.08);
+        box-shadow: 0 15px 35px var(--card-shadow);
       }
 
       .card h2 {
@@ -61,8 +115,15 @@
       select {
         padding: 0.6rem;
         border-radius: 8px;
-        border: 1px solid #d1d5db;
+        border: 1px solid var(--border-color);
         font-size: 1rem;
+        background: var(--input-bg);
+        color: var(--text);
+      }
+
+      input[type='text']::placeholder {
+        color: var(--muted-text);
+        opacity: 0.85;
       }
 
       button {
@@ -73,8 +134,8 @@
         padding: 0.65rem 0.75rem;
         border: none;
         border-radius: 8px;
-        background: #2563eb;
-        color: white;
+        background: var(--accent);
+        color: #ffffff;
         font-weight: 600;
         cursor: pointer;
         transition: transform 0.15s ease, box-shadow 0.15s ease;
@@ -82,14 +143,30 @@
 
       button:hover {
         transform: translateY(-1px);
-        box-shadow: 0 10px 20px rgba(37, 99, 235, 0.2);
+        box-shadow: 0 10px 20px var(--accent-hover-shadow);
       }
 
       button:disabled {
-        background: #9ca3af;
+        background: var(--button-disabled);
         cursor: not-allowed;
         box-shadow: none;
         transform: none;
+      }
+
+      .secondary-button {
+        background: transparent;
+        color: var(--text);
+        border: 1px solid var(--border-color);
+        box-shadow: none;
+      }
+
+      .secondary-button:hover {
+        box-shadow: 0 6px 14px var(--card-shadow);
+        background: rgba(99, 102, 241, 0.08);
+      }
+
+      body.dark .secondary-button:hover {
+        background: rgba(148, 163, 184, 0.12);
       }
 
       .inline-actions {
@@ -104,10 +181,10 @@
       }
 
       .result-card {
-        background: #ffffff;
+        background: var(--card-bg);
         border-radius: 12px;
         padding: 1rem 1.25rem;
-        box-shadow: 0 10px 25px rgba(15, 23, 42, 0.1);
+        box-shadow: 0 10px 25px var(--result-shadow);
       }
 
       .result-card h3 {
@@ -120,15 +197,15 @@
         margin: 0.4rem 0;
         padding: 0.5rem;
         border-radius: 6px;
-        background: #f9fafb;
-        border-left: 3px solid #2563eb;
+        background: var(--match-bg);
+        border-left: 3px solid var(--accent);
         font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
         white-space: pre-wrap;
       }
 
       mark {
-        background: #f59e0b;
-        color: inherit;
+        background: var(--mark-bg);
+        color: var(--mark-text);
         padding: 0 0.15rem;
         border-radius: 4px;
       }
@@ -142,7 +219,7 @@
       td {
         padding: 0.6rem;
         text-align: left;
-        border-bottom: 1px solid #e5e7eb;
+        border-bottom: 1px solid var(--table-border);
         font-size: 0.95rem;
       }
 
@@ -154,8 +231,8 @@
         margin-bottom: 1rem;
         padding: 0.75rem 1rem;
         border-radius: 10px;
-        background: #eef2ff;
-        color: #1e3a8a;
+        background: var(--status-info-bg);
+        color: var(--status-info-text);
         display: none;
       }
 
@@ -163,11 +240,50 @@
         display: none;
       }
 
+      #history-filter {
+        margin-top: 0.75rem;
+        width: 100%;
+      }
+
+      .history-filter-label {
+        font-size: 0.9rem;
+        color: var(--muted-text);
+        display: block;
+        margin-top: 1rem;
+      }
+
+      .preview-card {
+        margin-top: 2rem;
+        background: var(--card-bg);
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 15px 35px var(--card-shadow);
+      }
+
+      .preview-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1rem;
+      }
+
+      #preview-content {
+        max-height: 320px;
+        overflow: auto;
+        background: var(--preview-bg);
+        color: #e2e8f0;
+        padding: 1rem;
+        border-radius: 10px;
+        font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+        white-space: pre-wrap;
+      }
+
       footer {
         margin-top: 3rem;
         text-align: center;
         font-size: 0.85rem;
-        color: #6b7280;
+        color: var(--muted-text);
       }
 
       @media (max-width: 640px) {
@@ -182,7 +298,10 @@
     </style>
   </head>
   <body>
-    <h1>📄 Live Markdown Search</h1>
+    <header class="app-header">
+      <h1>📄 Live Markdown Search</h1>
+      <button id="theme-toggle" class="secondary-button" type="button">🌙 Dark Mode</button>
+    </header>
 
     <div id="status" class="status"></div>
 
@@ -217,7 +336,7 @@
           <option value="regex">Regex pattern (use | for OR)</option>
           <option value="wildcard">Wildcard (* and ?)</option>
         </select>
-        <p style="margin: 0.75rem 0 0; font-size: 0.85rem; color: #6b7280;">
+        <p style="margin: 0.75rem 0 0; font-size: 0.85rem; color: var(--muted-text);">
           Use commas to separate keywords for AND search. Regex mode accepts any JavaScript regular
           expression. Wildcard mode supports <code>*</code> for any sequence and <code>?</code> for a
           single character, plus <code>|</code> for alternatives.
@@ -227,7 +346,7 @@
 
       <article class="card" id="upload-card">
         <h2>Upload Markdown</h2>
-        <p style="margin-top: 0; font-size: 0.9rem; color: #6b7280;">Editors and admins can upload .md files.</p>
+        <p style="margin-top: 0; font-size: 0.9rem; color: var(--muted-text);">Editors and admins can upload .md files.</p>
         <input id="file-input" type="file" accept=".md" class="hidden-input" />
         <button id="upload-btn">⬆️ Upload Markdown File</button>
       </article>
@@ -238,6 +357,8 @@
           <button id="reindex-btn">🔁 Force Reindex</button>
           <button id="history-btn">📜 View Upload History</button>
         </div>
+        <label class="history-filter-label" for="history-filter">Filter history</label>
+        <input id="history-filter" type="text" placeholder="Search by file, user, or role" disabled />
         <div id="history-container"></div>
       </article>
     </section>
@@ -245,6 +366,18 @@
     <section>
       <h2 style="margin-bottom: 1rem;">Results</h2>
       <div id="results" class="results"></div>
+    </section>
+
+    <section id="preview-section" class="preview-card" style="display: none;">
+      <div class="preview-header">
+        <div>
+          <h2 style="margin: 0;">File Preview</h2>
+          <p id="preview-meta" style="margin: 0.35rem 0 0; color: var(--muted-text); font-size: 0.9rem;"></p>
+        </div>
+        <button id="close-preview" class="secondary-button" type="button">✖ Close</button>
+      </div>
+      <h3 id="preview-filename" style="margin-top: 0; margin-bottom: 0.75rem;"></h3>
+      <pre id="preview-content"></pre>
     </section>
 
     <footer>
@@ -265,28 +398,83 @@
       const resultsEl = document.getElementById('results');
       const currentUserEl = document.getElementById('current-user');
       const historyContainer = document.getElementById('history-container');
+      const historyFilterInput = document.getElementById('history-filter');
+      const themeToggleBtn = document.getElementById('theme-toggle');
+      const previewSection = document.getElementById('preview-section');
+      const previewFilenameEl = document.getElementById('preview-filename');
+      const previewContentEl = document.getElementById('preview-content');
+      const previewMetaEl = document.getElementById('preview-meta');
+      const closePreviewBtn = document.getElementById('close-preview');
 
       const allowedRoles = ['viewer', 'editor', 'admin'];
       let authToken = null;
       let userProfile = null;
       let lastSearch = null;
       let socket = null;
+      let statusTimeoutId = null;
+      let historyRecords = [];
+      let historySort = { key: 'uploadedAt', direction: 'desc' };
+      let historyLoaded = false;
 
       const origin = window.location.origin.startsWith('http')
         ? window.location.origin
         : 'http://localhost:3000';
 
+      function readCssVar(name) {
+        const bodyStyle = getComputedStyle(document.body);
+        const rootStyle = getComputedStyle(document.documentElement);
+        const value = bodyStyle.getPropertyValue(name) || rootStyle.getPropertyValue(name);
+        return value.trim();
+      }
+
       function setStatus(message, type = 'info', duration = 3000) {
         statusEl.textContent = message;
         statusEl.style.display = 'block';
-        statusEl.style.background = type === 'error' ? '#fee2e2' : '#eef2ff';
-        statusEl.style.color = type === 'error' ? '#991b1b' : '#1e3a8a';
+        const infoBg = readCssVar('--status-info-bg') || '#eef2ff';
+        const infoText = readCssVar('--status-info-text') || '#1e3a8a';
+        const errorBg = readCssVar('--status-error-bg') || '#fee2e2';
+        const errorText = readCssVar('--status-error-text') || '#991b1b';
+
+        if (type === 'error') {
+          statusEl.style.background = errorBg;
+          statusEl.style.color = errorText;
+        } else {
+          statusEl.style.background = infoBg;
+          statusEl.style.color = infoText;
+        }
+
+        if (statusTimeoutId) {
+          clearTimeout(statusTimeoutId);
+        }
+
         if (duration) {
-          setTimeout(() => {
+          statusTimeoutId = setTimeout(() => {
             statusEl.style.display = 'none';
           }, duration);
         }
       }
+
+      function applyTheme(theme) {
+        const normalized = theme === 'dark' ? 'dark' : 'light';
+        document.body.classList.toggle('dark', normalized === 'dark');
+        localStorage.setItem('md-search-theme', normalized);
+        themeToggleBtn.textContent = normalized === 'dark' ? '🌞 Light Mode' : '🌙 Dark Mode';
+      }
+
+      function toggleTheme() {
+        const nextTheme = document.body.classList.contains('dark') ? 'light' : 'dark';
+        applyTheme(nextTheme);
+      }
+
+      const storedTheme = localStorage.getItem('md-search-theme');
+      if (storedTheme) {
+        applyTheme(storedTheme);
+      } else {
+        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        applyTheme(prefersDark ? 'dark' : 'light');
+      }
+
+      themeToggleBtn.addEventListener('click', toggleTheme);
 
       function requireToken() {
         if (!authToken) {
@@ -304,6 +492,15 @@
         uploadBtn.disabled = !isEditorOrAdmin;
         reindexBtn.disabled = !isAdmin;
         historyBtn.disabled = !isAdmin;
+        historyFilterInput.disabled = !isAdmin;
+        if (!isAdmin) {
+          historyFilterInput.value = '';
+          historyRecords = [];
+          historyLoaded = false;
+          historyContainer.innerHTML = '';
+        } else if (!historyLoaded && historyContainer.innerHTML.trim() === '') {
+          renderHistoryTable();
+        }
       }
 
       function wildcardPatternToRegexSource(pattern) {
@@ -353,7 +550,7 @@
       function renderResults(items, descriptor) {
         resultsEl.innerHTML = '';
         if (!items.length) {
-          resultsEl.innerHTML = '<p style="color:#6b7280;">No matches yet. Try another search.</p>';
+          resultsEl.innerHTML = '<p style="color:var(--muted-text);">No matches yet. Try another search.</p>';
           return;
         }
 
@@ -379,13 +576,21 @@
           const actions = document.createElement('div');
           actions.className = 'inline-actions';
 
+          const previewBtn = document.createElement('button');
+          previewBtn.type = 'button';
+          previewBtn.textContent = '👀 Preview';
+          previewBtn.addEventListener('click', () => previewFile(item.filename));
+          actions.appendChild(previewBtn);
+
           const downloadBtn = document.createElement('button');
+          downloadBtn.type = 'button';
           downloadBtn.textContent = '⬇️ Download';
           downloadBtn.addEventListener('click', () => downloadFile(item.filename));
           actions.appendChild(downloadBtn);
 
           if (userProfile?.role === 'admin') {
             const deleteBtn = document.createElement('button');
+            deleteBtn.type = 'button';
             deleteBtn.textContent = '🗑️ Delete';
             deleteBtn.addEventListener('click', () => deleteFile(item.filename));
             actions.appendChild(deleteBtn);
@@ -396,6 +601,56 @@
         });
 
         resultsEl.appendChild(fragment);
+      }
+
+      function formatFileSize(bytes) {
+        if (!Number.isFinite(bytes)) {
+          return 'unknown size';
+        }
+        if (bytes < 1024) {
+          return `${bytes} B`;
+        }
+        if (bytes < 1024 * 1024) {
+          return `${(bytes / 1024).toFixed(1)} KB`;
+        }
+        return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+      }
+
+      function hidePreview() {
+        previewSection.style.display = 'none';
+        previewFilenameEl.textContent = '';
+        previewMetaEl.textContent = '';
+        previewContentEl.textContent = '';
+      }
+
+      function showPreview(data) {
+        previewFilenameEl.textContent = data.filename;
+        const lineLabel = data.lineCount === 1 ? '1 line' : `${data.lineCount} lines`;
+        previewMetaEl.textContent = `${lineLabel} • ${formatFileSize(data.size || 0)}`;
+        previewContentEl.textContent = data.content || '(empty file)';
+        previewSection.style.display = 'block';
+      }
+
+      async function previewFile(filename) {
+        try {
+          const token = requireToken();
+          const response = await fetch(`${origin}/preview-doc/${encodeURIComponent(filename)}`, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
+
+          if (!response.ok) {
+            const error = await response.json().catch(() => ({ message: 'Preview failed.' }));
+            throw new Error(error.message || 'Preview failed.');
+          }
+
+          const data = await response.json();
+          showPreview(data);
+        } catch (error) {
+          console.error(error);
+          setStatus(error.message, 'error');
+        }
       }
 
       function connectSocket() {
@@ -426,6 +681,13 @@
           const byline = user?.user ? ` by ${user.user}` : '';
           const message = `File ${filename} ${event}${byline}. Refreshing results...`;
           setStatus(message, 'info');
+          if (previewSection.style.display !== 'none' && previewFilenameEl.textContent === filename) {
+            if (event === 'deleted' || event === 'removed') {
+              hidePreview();
+            } else {
+              previewFile(filename);
+            }
+          }
           rerunLastSearch();
         });
 
@@ -579,6 +841,9 @@
           }
 
           setStatus(`${filename} deleted successfully.`);
+          if (previewSection.style.display !== 'none' && previewFilenameEl.textContent === filename) {
+            hidePreview();
+          }
           rerunLastSearch();
         } catch (error) {
           console.error(error);
@@ -636,11 +901,48 @@
         }
       }
 
-      function renderHistoryTable(records) {
-        if (!records.length) {
-          historyContainer.innerHTML = '<p style="color:#6b7280; margin-top:0.75rem;">No uploads yet.</p>';
+      function getFilteredHistory() {
+        const term = historyFilterInput.value.trim().toLowerCase();
+        if (!term) {
+          return [...historyRecords];
+        }
+        return historyRecords.filter((record) => {
+          return [record.filename, record.user, record.role, new Date(record.uploadedAt).toLocaleString()]
+            .map((value) => String(value).toLowerCase())
+            .some((value) => value.includes(term));
+        });
+      }
+
+      function getSortedHistory(records) {
+        if (!historySort.key) {
+          return [...records];
+        }
+        const multiplier = historySort.direction === 'asc' ? 1 : -1;
+        return [...records].sort((a, b) => {
+          if (historySort.key === 'uploadedAt') {
+            return (new Date(a.uploadedAt) - new Date(b.uploadedAt)) * multiplier;
+          }
+          return String(a[historySort.key]).localeCompare(String(b[historySort.key])) * multiplier;
+        });
+      }
+
+      function renderHistoryTable() {
+        if (!historyRecords.length) {
+          if (!historyLoaded) {
+            historyContainer.innerHTML = '<p style="color: var(--muted-text); margin-top:0.75rem;">History not loaded yet. Select “View Upload History”.</p>';
+          } else {
+            historyContainer.innerHTML = '<p style="color: var(--muted-text); margin-top:0.75rem;">No uploads yet.</p>';
+          }
           return;
         }
+
+        const filtered = getFilteredHistory();
+        if (!filtered.length) {
+          historyContainer.innerHTML = '<p style="color: var(--muted-text); margin-top:0.75rem;">No uploads match your filter.</p>';
+          return;
+        }
+
+        const records = getSortedHistory(filtered);
 
         const table = document.createElement('table');
         const thead = document.createElement('thead');
@@ -654,15 +956,19 @@
 
         headers.forEach((header) => {
           const th = document.createElement('th');
-          th.textContent = header.label;
+          const isActive = historySort.key === header.key;
+          const arrow = isActive ? (historySort.direction === 'asc' ? ' ▲' : ' ▼') : '';
+          th.textContent = `${header.label}${arrow}`;
           th.addEventListener('click', () => {
-            const sorted = [...records].sort((a, b) => {
-              if (header.key === 'uploadedAt') {
-                return new Date(b[header.key]) - new Date(a[header.key]);
-              }
-              return String(a[header.key]).localeCompare(String(b[header.key]));
-            });
-            renderHistoryTable(sorted);
+            if (historySort.key === header.key) {
+              historySort.direction = historySort.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+              historySort = {
+                key: header.key,
+                direction: header.key === 'uploadedAt' ? 'desc' : 'asc',
+              };
+            }
+            renderHistoryTable();
           });
           headerRow.appendChild(th);
         });
@@ -690,6 +996,7 @@
       async function loadHistory() {
         try {
           const token = requireToken();
+          historyContainer.innerHTML = '<p style="color: var(--muted-text); margin-top:0.75rem;">Loading history…</p>';
           const response = await fetch(`${origin}/upload-history`, {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -702,7 +1009,12 @@
           }
 
           const data = await response.json();
-          renderHistoryTable(data.history || []);
+          historyRecords = data.history || [];
+          historySort = { key: 'uploadedAt', direction: 'desc' };
+          historyFilterInput.value = '';
+          historyFilterInput.disabled = false;
+          historyLoaded = true;
+          renderHistoryTable();
         } catch (error) {
           console.error(error);
           setStatus(error.message, 'error');
@@ -783,12 +1095,23 @@
         forceReindex();
       });
 
+      historyFilterInput.addEventListener('input', () => {
+        if (historyFilterInput.disabled) {
+          return;
+        }
+        renderHistoryTable();
+      });
+
       historyBtn.addEventListener('click', () => {
         if (historyBtn.disabled) {
           setStatus('Admin role required to view history.', 'error');
           return;
         }
         loadHistory();
+      });
+
+      closePreviewBtn.addEventListener('click', () => {
+        hidePreview();
       });
 
       updateRoleControls();
