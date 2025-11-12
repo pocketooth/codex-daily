@@ -266,17 +266,124 @@
         align-items: center;
         gap: 1rem;
         margin-bottom: 1rem;
+        flex-wrap: wrap;
       }
 
-      #preview-content {
+      .preview-header-actions {
+        display: flex;
+        gap: 0.75rem;
+        align-items: center;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+
+      .preview-mode-toggle {
+        display: inline-flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+      }
+
+      .preview-mode-button {
+        padding: 0.4rem 0.75rem;
+        font-size: 0.85rem;
+        border-radius: 8px;
+        border: 1px solid var(--border-color);
+        background: transparent;
+        color: var(--text);
+        cursor: pointer;
+        transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+      }
+
+      .preview-mode-button:hover {
+        box-shadow: 0 6px 14px var(--card-shadow);
+      }
+
+      .preview-mode-button.active {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #ffffff;
+        box-shadow: 0 10px 20px var(--accent-hover-shadow);
+      }
+
+      .preview-body {
+        display: grid;
+        gap: 1rem;
+      }
+
+      .preview-pane {
+        display: none;
         max-height: 320px;
         overflow: auto;
-        background: var(--preview-bg);
-        color: #e2e8f0;
         padding: 1rem;
         border-radius: 10px;
+      }
+
+      .preview-raw {
+        background: var(--preview-bg);
+        color: #e2e8f0;
         font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
         white-space: pre-wrap;
+      }
+
+      .preview-rendered {
+        background: var(--card-bg);
+        color: var(--text);
+        border: 1px solid var(--border-color);
+        line-height: 1.6;
+      }
+
+      body.dark .preview-rendered {
+        background: var(--card-bg);
+        color: var(--text);
+        border-color: var(--border-color);
+      }
+
+      .preview-card[data-mode='raw'] .preview-raw,
+      .preview-card[data-mode='split'] .preview-raw {
+        display: block;
+      }
+
+      .preview-card[data-mode='rendered'] .preview-rendered,
+      .preview-card[data-mode='split'] .preview-rendered {
+        display: block;
+      }
+
+      .preview-card[data-mode='split'] .preview-body {
+        grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+      }
+
+      .preview-card[data-mode='raw'] .preview-body,
+      .preview-card[data-mode='rendered'] .preview-body {
+        grid-template-columns: 1fr;
+      }
+
+      .preview-rendered h1,
+      .preview-rendered h2,
+      .preview-rendered h3,
+      .preview-rendered h4 {
+        margin-top: 1.25rem;
+        margin-bottom: 0.75rem;
+        font-weight: 600;
+      }
+
+      .preview-rendered p,
+      .preview-rendered ul,
+      .preview-rendered ol,
+      .preview-rendered pre,
+      .preview-rendered blockquote {
+        margin-top: 0.75rem;
+        margin-bottom: 0.75rem;
+      }
+
+      .preview-rendered pre {
+        background: rgba(15, 23, 42, 0.08);
+        padding: 0.75rem;
+        border-radius: 8px;
+        overflow-x: auto;
+      }
+
+      body.dark .preview-rendered pre {
+        background: rgba(148, 163, 184, 0.12);
       }
 
       footer {
@@ -368,16 +475,26 @@
       <div id="results" class="results"></div>
     </section>
 
-    <section id="preview-section" class="preview-card" style="display: none;">
+    <section id="preview-section" class="preview-card" style="display: none;" data-mode="split">
       <div class="preview-header">
         <div>
           <h2 style="margin: 0;">File Preview</h2>
           <p id="preview-meta" style="margin: 0.35rem 0 0; color: var(--muted-text); font-size: 0.9rem;"></p>
         </div>
-        <button id="close-preview" class="secondary-button" type="button">✖ Close</button>
+        <div class="preview-header-actions">
+          <div class="preview-mode-toggle" role="group" aria-label="Preview display mode">
+            <button type="button" class="preview-mode-button" data-preview-mode="raw">Raw</button>
+            <button type="button" class="preview-mode-button" data-preview-mode="rendered">Markdown</button>
+            <button type="button" class="preview-mode-button" data-preview-mode="split">Split</button>
+          </div>
+          <button id="close-preview" class="secondary-button" type="button">✖ Close</button>
+        </div>
       </div>
       <h3 id="preview-filename" style="margin-top: 0; margin-bottom: 0.75rem;"></h3>
-      <pre id="preview-content"></pre>
+      <div id="preview-body" class="preview-body">
+        <pre id="preview-content-raw" class="preview-pane preview-raw"></pre>
+        <article id="preview-content-rendered" class="preview-pane preview-rendered"></article>
+      </div>
     </section>
 
     <footer>
@@ -385,9 +502,11 @@
     </footer>
 
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js" integrity="sha384-AbQ7+wzCTsRmR271GGBqBPdZiZsaAJ+lZeXqIuAv89xDSHLVYDBlnJrped1IovnE" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script>
       const statusEl = document.getElementById('status');
       const loginBtn = document.getElementById('login-btn');
+      const roleSelect = document.getElementById('role');
       const searchBtn = document.getElementById('search-btn');
       const uploadBtn = document.getElementById('upload-btn');
       const reindexBtn = document.getElementById('reindex-btn');
@@ -402,11 +521,17 @@
       const themeToggleBtn = document.getElementById('theme-toggle');
       const previewSection = document.getElementById('preview-section');
       const previewFilenameEl = document.getElementById('preview-filename');
-      const previewContentEl = document.getElementById('preview-content');
       const previewMetaEl = document.getElementById('preview-meta');
+      const previewRawEl = document.getElementById('preview-content-raw');
+      const previewRenderedEl = document.getElementById('preview-content-rendered');
+      const previewModeButtons = Array.from(document.querySelectorAll('[data-preview-mode]'));
       const closePreviewBtn = document.getElementById('close-preview');
 
       const allowedRoles = ['viewer', 'editor', 'admin'];
+      const previewModes = ['raw', 'rendered', 'split'];
+      const previewModeStorageKey = 'md-preview-mode';
+      const storedPreviewMode = localStorage.getItem(previewModeStorageKey);
+      let currentPreviewMode = previewModes.includes(storedPreviewMode) ? storedPreviewMode : 'split';
       let authToken = null;
       let userProfile = null;
       let lastSearch = null;
@@ -420,12 +545,92 @@
         ? window.location.origin
         : 'http://localhost:3000';
 
+      function populateRoleOptions() {
+        if (!roleSelect) return;
+        const previous = roleSelect.value;
+        roleSelect.innerHTML = '';
+        allowedRoles.forEach((role) => {
+          const option = document.createElement('option');
+          option.value = role;
+          option.textContent = `${role.charAt(0).toUpperCase()}${role.slice(1)}`;
+          roleSelect.appendChild(option);
+        });
+        const desired = allowedRoles.includes(previous) ? previous : allowedRoles[0];
+        roleSelect.value = desired;
+      }
+
+      populateRoleOptions();
+
+      if (window.marked && typeof window.marked.setOptions === 'function') {
+        window.marked.setOptions({ breaks: true, gfm: true });
+      }
+
       function readCssVar(name) {
         const bodyStyle = getComputedStyle(document.body);
         const rootStyle = getComputedStyle(document.documentElement);
         const value = bodyStyle.getPropertyValue(name) || rootStyle.getPropertyValue(name);
         return value.trim();
       }
+
+      function escapeHtml(value) {
+        return value
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+
+      function renderMarkdown(content) {
+        const safeContent = typeof content === 'string' ? content : '';
+        if (window.marked && typeof window.marked.parse === 'function') {
+          return window.marked.parse(safeContent);
+        }
+        return `<div>${escapeHtml(safeContent).replace(/\n/g, '<br />')}</div>`;
+      }
+
+      function updatePreviewModeButtons() {
+        previewModeButtons.forEach((button) => {
+          const mode = button.getAttribute('data-preview-mode');
+          const isActive = mode === currentPreviewMode;
+          button.classList.toggle('active', isActive);
+          button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+        });
+      }
+
+      function setPreviewMode(mode, options = {}) {
+        const fallbackMode = previewModes.includes(mode) ? mode : 'split';
+        currentPreviewMode = fallbackMode;
+        if (previewSection) {
+          previewSection.dataset.mode = currentPreviewMode;
+        }
+        if (options.persist !== false) {
+          localStorage.setItem(previewModeStorageKey, currentPreviewMode);
+        }
+        updatePreviewModeButtons();
+      }
+
+      function renderPreviewContent(content) {
+        if (!previewRawEl || !previewRenderedEl) return;
+        const value = typeof content === 'string' ? content : '';
+        previewRawEl.textContent = value || '(empty file)';
+        if (value) {
+          previewRenderedEl.innerHTML = renderMarkdown(value);
+        } else {
+          previewRenderedEl.innerHTML = '<p style="color: var(--muted-text);">(empty file)</p>';
+        }
+        previewRawEl.scrollTop = 0;
+        previewRenderedEl.scrollTop = 0;
+      }
+
+      setPreviewMode(currentPreviewMode, { persist: false });
+
+      previewModeButtons.forEach((button) => {
+        button.addEventListener('click', () => {
+          const mode = button.getAttribute('data-preview-mode');
+          setPreviewMode(mode);
+        });
+      });
 
       function setStatus(message, type = 'info', duration = 3000) {
         statusEl.textContent = message;
@@ -620,15 +825,21 @@
         previewSection.style.display = 'none';
         previewFilenameEl.textContent = '';
         previewMetaEl.textContent = '';
-        previewContentEl.textContent = '';
+        if (previewRawEl) {
+          previewRawEl.textContent = '';
+        }
+        if (previewRenderedEl) {
+          previewRenderedEl.innerHTML = '';
+        }
       }
 
       function showPreview(data) {
         previewFilenameEl.textContent = data.filename;
         const lineLabel = data.lineCount === 1 ? '1 line' : `${data.lineCount} lines`;
         previewMetaEl.textContent = `${lineLabel} • ${formatFileSize(data.size || 0)}`;
-        previewContentEl.textContent = data.content || '(empty file)';
+        renderPreviewContent(data.content || '');
         previewSection.style.display = 'block';
+        setPreviewMode(currentPreviewMode, { persist: false });
       }
 
       async function previewFile(filename) {
@@ -1024,7 +1235,7 @@
       loginBtn.addEventListener('click', async () => {
         try {
           const username = document.getElementById('username').value.trim();
-          const role = document.getElementById('role').value;
+          const role = roleSelect.value;
 
           if (!username) {
             setStatus('Enter a username.', 'error');

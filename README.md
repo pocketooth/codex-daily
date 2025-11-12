@@ -10,7 +10,7 @@ A full-stack demo application for searching, uploading, downloading, and managin
 - 📡 Real-time notifications when files change or the index rebuilds
 - 📝 Upload history tracking for administrators
 - 🌐 Simple HTML/CSS/JavaScript frontend with Socket.IO live updates
-- 👀 In-browser Markdown preview with automatic refresh on file changes
+- 👀 In-browser Markdown preview with raw/markdown/split modes and automatic refresh on file changes
 - 🔦 Live search filter on the upload history table
 - 🌗 Dark/light mode toggle with persistence
 
@@ -72,7 +72,7 @@ All authenticated routes expect an `Authorization: Bearer <token>` header.
   - `and` (default): comma-separated keywords must all appear in a matching line.
   - `regex`: full JavaScript regular expressions with operators such as `|` for OR.
   - `wildcard`: simple patterns using `*` (any sequence), `?` (single character), and `|` for alternation.
-- Use the preview button to inspect Markdown content without downloading; previews update automatically when the underlying file changes.
+- Use the preview button to inspect Markdown content without downloading. Toggle between raw, rendered, or split views via the preview toolbar—your choice persists, and previews refresh automatically when the underlying file changes.
 - Admins can type in the history filter field to instantly narrow the upload log by filename, user, role, or timestamp.
 - Toggle light and dark themes via the header button—your selection is remembered across visits.
 
