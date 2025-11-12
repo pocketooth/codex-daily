@@ -1,0 +1,1331 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Live Markdown Search</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" />
+    <style>
+      :root {
+        font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        color-scheme: light;
+        --bg: #f3f4f6;
+        --text: #111827;
+        --card-bg: #ffffff;
+        --muted-text: #6b7280;
+        --accent: #2563eb;
+        --accent-hover-shadow: rgba(37, 99, 235, 0.2);
+        --button-disabled: #9ca3af;
+        --card-shadow: rgba(15, 23, 42, 0.08);
+        --result-shadow: rgba(15, 23, 42, 0.1);
+        --match-bg: #f9fafb;
+        --status-info-bg: #eef2ff;
+        --status-info-text: #1e3a8a;
+        --status-error-bg: #fee2e2;
+        --status-error-text: #991b1b;
+        --border-color: #d1d5db;
+        --table-border: #e5e7eb;
+        --mark-bg: #f59e0b;
+        --mark-text: inherit;
+        --preview-bg: #0b1120;
+        --input-bg: #ffffff;
+      }
+
+      body {
+        margin: 0;
+        padding: 2rem;
+        background: var(--bg);
+        color: var(--text);
+        transition: background 0.2s ease, color 0.2s ease;
+      }
+
+      body.dark {
+        color-scheme: dark;
+        --bg: #0f172a;
+        --text: #f8fafc;
+        --card-bg: #1e293b;
+        --muted-text: #94a3b8;
+        --accent: #60a5fa;
+        --accent-hover-shadow: rgba(96, 165, 250, 0.35);
+        --button-disabled: #475569;
+        --card-shadow: rgba(15, 23, 42, 0.45);
+        --result-shadow: rgba(15, 23, 42, 0.65);
+        --match-bg: rgba(148, 163, 184, 0.18);
+        --status-info-bg: rgba(96, 165, 250, 0.18);
+        --status-info-text: #dbeafe;
+        --status-error-bg: rgba(248, 113, 113, 0.16);
+        --status-error-text: #fecaca;
+        --border-color: #475569;
+        --table-border: #334155;
+        --mark-bg: #facc15;
+        --mark-text: #111827;
+        --preview-bg: #020617;
+        --input-bg: rgba(148, 163, 184, 0.12);
+      }
+
+      .app-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+        flex-wrap: wrap;
+      }
+
+      h1 {
+        margin: 0;
+        flex: 1 1 auto;
+        text-align: left;
+      }
+
+      .app-grid {
+        display: grid;
+        gap: 1.5rem;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        margin-bottom: 2rem;
+      }
+
+      .card {
+        background: var(--card-bg);
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 15px 35px var(--card-shadow);
+      }
+
+      .card h2 {
+        margin-top: 0;
+        font-size: 1.1rem;
+        margin-bottom: 0.75rem;
+      }
+
+      label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+      }
+
+      input[type='text'],
+      select,
+      button,
+      table {
+        width: 100%;
+      }
+
+      input[type='text'],
+      select {
+        padding: 0.6rem;
+        border-radius: 8px;
+        border: 1px solid var(--border-color);
+        font-size: 1rem;
+        background: var(--input-bg);
+        color: var(--text);
+      }
+
+      input[type='text']::placeholder {
+        color: var(--muted-text);
+        opacity: 0.85;
+      }
+
+      button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.35rem;
+        padding: 0.65rem 0.75rem;
+        border: none;
+        border-radius: 8px;
+        background: var(--accent);
+        color: #ffffff;
+        font-weight: 600;
+        cursor: pointer;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+      }
+
+      button:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 10px 20px var(--accent-hover-shadow);
+      }
+
+      button:disabled {
+        background: var(--button-disabled);
+        cursor: not-allowed;
+        box-shadow: none;
+        transform: none;
+      }
+
+      .secondary-button {
+        background: transparent;
+        color: var(--text);
+        border: 1px solid var(--border-color);
+        box-shadow: none;
+      }
+
+      .secondary-button:hover {
+        box-shadow: 0 6px 14px var(--card-shadow);
+        background: rgba(99, 102, 241, 0.08);
+      }
+
+      body.dark .secondary-button:hover {
+        background: rgba(148, 163, 184, 0.12);
+      }
+
+      .inline-actions {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+      }
+
+      .results {
+        display: grid;
+        gap: 1rem;
+      }
+
+      .result-card {
+        background: var(--card-bg);
+        border-radius: 12px;
+        padding: 1rem 1.25rem;
+        box-shadow: 0 10px 25px var(--result-shadow);
+      }
+
+      .result-card h3 {
+        margin-top: 0;
+        margin-bottom: 0.75rem;
+        font-size: 1.05rem;
+      }
+
+      .match-line {
+        margin: 0.4rem 0;
+        padding: 0.5rem;
+        border-radius: 6px;
+        background: var(--match-bg);
+        border-left: 3px solid var(--accent);
+        font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+        white-space: pre-wrap;
+      }
+
+      mark {
+        background: var(--mark-bg);
+        color: var(--mark-text);
+        padding: 0 0.15rem;
+        border-radius: 4px;
+      }
+
+      table {
+        border-collapse: collapse;
+        margin-top: 0.75rem;
+      }
+
+      th,
+      td {
+        padding: 0.6rem;
+        text-align: left;
+        border-bottom: 1px solid var(--table-border);
+        font-size: 0.95rem;
+      }
+
+      th {
+        cursor: pointer;
+      }
+
+      .status {
+        margin-bottom: 1rem;
+        padding: 0.75rem 1rem;
+        border-radius: 10px;
+        background: var(--status-info-bg);
+        color: var(--status-info-text);
+        display: none;
+      }
+
+      .hidden-input {
+        display: none;
+      }
+
+      #history-filter {
+        margin-top: 0.75rem;
+        width: 100%;
+      }
+
+      .history-filter-label {
+        font-size: 0.9rem;
+        color: var(--muted-text);
+        display: block;
+        margin-top: 1rem;
+      }
+
+      .preview-card {
+        margin-top: 2rem;
+        background: var(--card-bg);
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 15px 35px var(--card-shadow);
+      }
+
+      .preview-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1rem;
+        flex-wrap: wrap;
+      }
+
+      .preview-header-actions {
+        display: flex;
+        gap: 0.75rem;
+        align-items: center;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+
+      .preview-mode-toggle {
+        display: inline-flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+      }
+
+      .preview-mode-button {
+        padding: 0.4rem 0.75rem;
+        font-size: 0.85rem;
+        border-radius: 8px;
+        border: 1px solid var(--border-color);
+        background: transparent;
+        color: var(--text);
+        cursor: pointer;
+        transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+      }
+
+      .preview-mode-button:hover {
+        box-shadow: 0 6px 14px var(--card-shadow);
+      }
+
+      .preview-mode-button.active {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #ffffff;
+        box-shadow: 0 10px 20px var(--accent-hover-shadow);
+      }
+
+      .preview-body {
+        display: grid;
+        gap: 1rem;
+      }
+
+      .preview-pane {
+        display: none;
+        max-height: 320px;
+        overflow: auto;
+        padding: 1rem;
+        border-radius: 10px;
+      }
+
+      .preview-raw {
+        background: var(--preview-bg);
+        color: #e2e8f0;
+        font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+        white-space: pre-wrap;
+      }
+
+      .preview-rendered {
+        background: var(--card-bg);
+        color: var(--text);
+        border: 1px solid var(--border-color);
+        line-height: 1.6;
+      }
+
+      body.dark .preview-rendered {
+        background: var(--card-bg);
+        color: var(--text);
+        border-color: var(--border-color);
+      }
+
+      .preview-card[data-mode='raw'] .preview-raw,
+      .preview-card[data-mode='split'] .preview-raw {
+        display: block;
+      }
+
+      .preview-card[data-mode='rendered'] .preview-rendered,
+      .preview-card[data-mode='split'] .preview-rendered {
+        display: block;
+      }
+
+      .preview-card[data-mode='split'] .preview-body {
+        grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+      }
+
+      .preview-card[data-mode='raw'] .preview-body,
+      .preview-card[data-mode='rendered'] .preview-body {
+        grid-template-columns: 1fr;
+      }
+
+      .preview-rendered h1,
+      .preview-rendered h2,
+      .preview-rendered h3,
+      .preview-rendered h4 {
+        margin-top: 1.25rem;
+        margin-bottom: 0.75rem;
+        font-weight: 600;
+      }
+
+      .preview-rendered p,
+      .preview-rendered ul,
+      .preview-rendered ol,
+      .preview-rendered pre,
+      .preview-rendered blockquote {
+        margin-top: 0.75rem;
+        margin-bottom: 0.75rem;
+      }
+
+      .preview-rendered pre {
+        background: rgba(15, 23, 42, 0.08);
+        padding: 0.75rem;
+        border-radius: 8px;
+        overflow-x: auto;
+      }
+
+      body.dark .preview-rendered pre {
+        background: rgba(148, 163, 184, 0.12);
+      }
+
+      footer {
+        margin-top: 3rem;
+        text-align: center;
+        font-size: 0.85rem;
+        color: var(--muted-text);
+      }
+
+      @media (max-width: 640px) {
+        body {
+          padding: 1rem;
+        }
+
+        .card {
+          padding: 1.25rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="app-header">
+      <h1>📄 Live Markdown Search</h1>
+      <button id="theme-toggle" class="secondary-button" type="button">🌙 Dark Mode</button>
+    </header>
+
+    <div id="status" class="status"></div>
+
+    <section class="app-grid">
+      <article class="card" id="login-card">
+        <h2>Login</h2>
+        <label for="username">Username</label>
+        <input id="username" type="text" placeholder="e.g. Alice" />
+
+        <label for="role">Role</label>
+        <select id="role">
+          <option value="viewer">Viewer</option>
+          <option value="editor">Editor</option>
+          <option value="admin">Admin</option>
+        </select>
+
+        <button id="login-btn">🔐 Login / Get Token</button>
+        <p id="current-user" style="margin-top: 0.75rem; font-size: 0.9rem; color: #374151;"></p>
+      </article>
+
+      <article class="card" id="search-card">
+        <h2>Search Markdown</h2>
+        <label for="search-input">Search keywords or pattern</label>
+        <input
+          id="search-input"
+          type="text"
+          placeholder="e.g. websocket, realtime or error|warning"
+        />
+        <label for="search-mode" style="margin-top: 0.75rem;">Mode</label>
+        <select id="search-mode">
+          <option value="and">All keywords (AND)</option>
+          <option value="regex">Regex pattern (use | for OR)</option>
+          <option value="wildcard">Wildcard (* and ?)</option>
+        </select>
+        <p style="margin: 0.75rem 0 0; font-size: 0.85rem; color: var(--muted-text);">
+          Use commas to separate keywords for AND search. Regex mode accepts any JavaScript regular
+          expression. Wildcard mode supports <code>*</code> for any sequence and <code>?</code> for a
+          single character, plus <code>|</code> for alternatives.
+        </p>
+        <button id="search-btn" style="margin-top: 0.75rem;">🔎 Search</button>
+      </article>
+
+      <article class="card" id="upload-card">
+        <h2>Upload Markdown</h2>
+        <p style="margin-top: 0; font-size: 0.9rem; color: var(--muted-text);">Editors and admins can upload .md files.</p>
+        <input id="file-input" type="file" accept=".md" class="hidden-input" />
+        <button id="upload-btn">⬆️ Upload Markdown File</button>
+      </article>
+
+      <article class="card" id="admin-card">
+        <h2>Admin Tools</h2>
+        <div class="inline-actions">
+          <button id="reindex-btn">🔁 Force Reindex</button>
+          <button id="history-btn">📜 View Upload History</button>
+        </div>
+        <label class="history-filter-label" for="history-filter">Filter history</label>
+        <input id="history-filter" type="text" placeholder="Search by file, user, or role" disabled />
+        <div id="history-container"></div>
+      </article>
+    </section>
+
+    <section>
+      <h2 style="margin-bottom: 1rem;">Results</h2>
+      <div id="results" class="results"></div>
+    </section>
+
+    <section id="preview-section" class="preview-card" style="display: none;" data-mode="split">
+      <div class="preview-header">
+        <div>
+          <h2 style="margin: 0;">File Preview</h2>
+          <p id="preview-meta" style="margin: 0.35rem 0 0; color: var(--muted-text); font-size: 0.9rem;"></p>
+        </div>
+        <div class="preview-header-actions">
+          <div class="preview-mode-toggle" role="group" aria-label="Preview display mode">
+            <button type="button" class="preview-mode-button" data-preview-mode="raw">Raw</button>
+            <button type="button" class="preview-mode-button" data-preview-mode="rendered">Markdown</button>
+            <button type="button" class="preview-mode-button" data-preview-mode="split">Split</button>
+          </div>
+          <button id="close-preview" class="secondary-button" type="button">✖ Close</button>
+        </div>
+      </div>
+      <h3 id="preview-filename" style="margin-top: 0; margin-bottom: 0.75rem;"></h3>
+      <div id="preview-body" class="preview-body">
+        <pre id="preview-content-raw" class="preview-pane preview-raw"></pre>
+        <article id="preview-content-rendered" class="preview-pane preview-rendered"></article>
+      </div>
+    </section>
+
+    <footer>
+      Built for the University Coding Challenge 2025 • Live updates powered by Socket.IO
+    </footer>
+
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js" integrity="sha384-AbQ7+wzCTsRmR271GGBqBPdZiZsaAJ+lZeXqIuAv89xDSHLVYDBlnJrped1IovnE" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script>
+      const statusEl = document.getElementById('status');
+      const loginBtn = document.getElementById('login-btn');
+      const roleSelect = document.getElementById('role');
+      const searchBtn = document.getElementById('search-btn');
+      const uploadBtn = document.getElementById('upload-btn');
+      const reindexBtn = document.getElementById('reindex-btn');
+      const historyBtn = document.getElementById('history-btn');
+      const fileInput = document.getElementById('file-input');
+      const searchInput = document.getElementById('search-input');
+      const searchModeSelect = document.getElementById('search-mode');
+      const resultsEl = document.getElementById('results');
+      const currentUserEl = document.getElementById('current-user');
+      const historyContainer = document.getElementById('history-container');
+      const historyFilterInput = document.getElementById('history-filter');
+      const themeToggleBtn = document.getElementById('theme-toggle');
+      const previewSection = document.getElementById('preview-section');
+      const previewFilenameEl = document.getElementById('preview-filename');
+      const previewMetaEl = document.getElementById('preview-meta');
+      const previewRawEl = document.getElementById('preview-content-raw');
+      const previewRenderedEl = document.getElementById('preview-content-rendered');
+      const previewModeButtons = Array.from(document.querySelectorAll('[data-preview-mode]'));
+      const closePreviewBtn = document.getElementById('close-preview');
+
+      const allowedRoles = ['viewer', 'editor', 'admin'];
+      const previewModes = ['raw', 'rendered', 'split'];
+      const previewModeStorageKey = 'md-preview-mode';
+      const storedPreviewMode = localStorage.getItem(previewModeStorageKey);
+      let currentPreviewMode = previewModes.includes(storedPreviewMode) ? storedPreviewMode : 'split';
+      let authToken = null;
+      let userProfile = null;
+      let lastSearch = null;
+      let socket = null;
+      let statusTimeoutId = null;
+      let historyRecords = [];
+      let historySort = { key: 'uploadedAt', direction: 'desc' };
+      let historyLoaded = false;
+
+      const origin = window.location.origin.startsWith('http')
+        ? window.location.origin
+        : 'http://localhost:3000';
+
+      function populateRoleOptions() {
+        if (!roleSelect) return;
+        const previous = roleSelect.value;
+        roleSelect.innerHTML = '';
+        allowedRoles.forEach((role) => {
+          const option = document.createElement('option');
+          option.value = role;
+          option.textContent = `${role.charAt(0).toUpperCase()}${role.slice(1)}`;
+          roleSelect.appendChild(option);
+        });
+        const desired = allowedRoles.includes(previous) ? previous : allowedRoles[0];
+        roleSelect.value = desired;
+      }
+
+      populateRoleOptions();
+
+      if (window.marked && typeof window.marked.setOptions === 'function') {
+        window.marked.setOptions({ breaks: true, gfm: true });
+      }
+
+      function readCssVar(name) {
+        const bodyStyle = getComputedStyle(document.body);
+        const rootStyle = getComputedStyle(document.documentElement);
+        const value = bodyStyle.getPropertyValue(name) || rootStyle.getPropertyValue(name);
+        return value.trim();
+      }
+
+      function escapeHtml(value) {
+        return value
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+
+      function renderMarkdown(content) {
+        const safeContent = typeof content === 'string' ? content : '';
+        if (window.marked && typeof window.marked.parse === 'function') {
+          return window.marked.parse(safeContent);
+        }
+        return `<div>${escapeHtml(safeContent).replace(/\n/g, '<br />')}</div>`;
+      }
+
+      function updatePreviewModeButtons() {
+        previewModeButtons.forEach((button) => {
+          const mode = button.getAttribute('data-preview-mode');
+          const isActive = mode === currentPreviewMode;
+          button.classList.toggle('active', isActive);
+          button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+        });
+      }
+
+      function setPreviewMode(mode, options = {}) {
+        const fallbackMode = previewModes.includes(mode) ? mode : 'split';
+        currentPreviewMode = fallbackMode;
+        if (previewSection) {
+          previewSection.dataset.mode = currentPreviewMode;
+        }
+        if (options.persist !== false) {
+          localStorage.setItem(previewModeStorageKey, currentPreviewMode);
+        }
+        updatePreviewModeButtons();
+      }
+
+      function renderPreviewContent(content) {
+        if (!previewRawEl || !previewRenderedEl) return;
+        const value = typeof content === 'string' ? content : '';
+        previewRawEl.textContent = value || '(empty file)';
+        if (value) {
+          previewRenderedEl.innerHTML = renderMarkdown(value);
+        } else {
+          previewRenderedEl.innerHTML = '<p style="color: var(--muted-text);">(empty file)</p>';
+        }
+        previewRawEl.scrollTop = 0;
+        previewRenderedEl.scrollTop = 0;
+      }
+
+      setPreviewMode(currentPreviewMode, { persist: false });
+
+      previewModeButtons.forEach((button) => {
+        button.addEventListener('click', () => {
+          const mode = button.getAttribute('data-preview-mode');
+          setPreviewMode(mode);
+        });
+      });
+
+      function setStatus(message, type = 'info', duration = 3000) {
+        statusEl.textContent = message;
+        statusEl.style.display = 'block';
+        const infoBg = readCssVar('--status-info-bg') || '#eef2ff';
+        const infoText = readCssVar('--status-info-text') || '#1e3a8a';
+        const errorBg = readCssVar('--status-error-bg') || '#fee2e2';
+        const errorText = readCssVar('--status-error-text') || '#991b1b';
+
+        if (type === 'error') {
+          statusEl.style.background = errorBg;
+          statusEl.style.color = errorText;
+        } else {
+          statusEl.style.background = infoBg;
+          statusEl.style.color = infoText;
+        }
+
+        if (statusTimeoutId) {
+          clearTimeout(statusTimeoutId);
+        }
+
+        if (duration) {
+          statusTimeoutId = setTimeout(() => {
+            statusEl.style.display = 'none';
+          }, duration);
+        }
+      }
+
+      function applyTheme(theme) {
+        const normalized = theme === 'dark' ? 'dark' : 'light';
+        document.body.classList.toggle('dark', normalized === 'dark');
+        localStorage.setItem('md-search-theme', normalized);
+        themeToggleBtn.textContent = normalized === 'dark' ? '🌞 Light Mode' : '🌙 Dark Mode';
+      }
+
+      function toggleTheme() {
+        const nextTheme = document.body.classList.contains('dark') ? 'light' : 'dark';
+        applyTheme(nextTheme);
+      }
+
+      const storedTheme = localStorage.getItem('md-search-theme');
+      if (storedTheme) {
+        applyTheme(storedTheme);
+      } else {
+        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        applyTheme(prefersDark ? 'dark' : 'light');
+      }
+
+      themeToggleBtn.addEventListener('click', toggleTheme);
+
+      function requireToken() {
+        if (!authToken) {
+          setStatus('Please log in to continue.', 'error');
+          throw new Error('Missing token');
+        }
+        return authToken;
+      }
+
+      function updateRoleControls() {
+        const role = userProfile?.role;
+        const isEditorOrAdmin = role === 'editor' || role === 'admin';
+        const isAdmin = role === 'admin';
+
+        uploadBtn.disabled = !isEditorOrAdmin;
+        reindexBtn.disabled = !isAdmin;
+        historyBtn.disabled = !isAdmin;
+        historyFilterInput.disabled = !isAdmin;
+        if (!isAdmin) {
+          historyFilterInput.value = '';
+          historyRecords = [];
+          historyLoaded = false;
+          historyContainer.innerHTML = '';
+        } else if (!historyLoaded && historyContainer.innerHTML.trim() === '') {
+          renderHistoryTable();
+        }
+      }
+
+      function wildcardPatternToRegexSource(pattern) {
+        const placeholder = pattern
+          .replace(/\\\*/g, '___ESCAPED_STAR___')
+          .replace(/\\\?/g, '___ESCAPED_Q___')
+          .replace(/\*/g, '___WILDCARD_STAR___')
+          .replace(/\?/g, '___WILDCARD_Q___');
+
+        const escaped = placeholder.replace(/([.+^${}()\[\]\\])/g, '\\$1');
+
+        return escaped
+          .replace(/___WILDCARD_STAR___/g, '.*')
+          .replace(/___WILDCARD_Q___/g, '.')
+          .replace(/___ESCAPED_STAR___/g, '\\*')
+          .replace(/___ESCAPED_Q___/g, '\\?');
+      }
+
+      function highlightMatches(text, descriptor) {
+        if (!descriptor) {
+          return text;
+        }
+
+        if (descriptor.mode === 'and') {
+          let highlighted = text;
+          (descriptor.keywords || []).forEach((keyword) => {
+            if (!keyword) return;
+            const regex = new RegExp(`(${keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+            highlighted = highlighted.replace(regex, '<mark>$1</mark>');
+          });
+          return highlighted;
+        }
+
+        if (descriptor.mode === 'regex' || descriptor.mode === 'wildcard') {
+          try {
+            const flags = descriptor.flags?.includes('g') ? descriptor.flags : `${descriptor.flags || ''}g`;
+            const regex = new RegExp(descriptor.pattern, flags.includes('i') ? flags : `${flags}i`);
+            return text.replace(regex, (match) => `<mark>${match}</mark>`);
+          } catch (_error) {
+            return text;
+          }
+        }
+
+        return text;
+      }
+
+      function renderResults(items, descriptor) {
+        resultsEl.innerHTML = '';
+        if (!items.length) {
+          resultsEl.innerHTML = '<p style="color:var(--muted-text);">No matches yet. Try another search.</p>';
+          return;
+        }
+
+        const fragment = document.createDocumentFragment();
+
+        items.forEach((item) => {
+          const card = document.createElement('article');
+          card.className = 'result-card';
+
+          const title = document.createElement('h3');
+          title.textContent = item.filename;
+          card.appendChild(title);
+
+          item.matches
+            .sort((a, b) => a.lineNumber - b.lineNumber)
+            .forEach((match) => {
+              const line = document.createElement('p');
+              line.className = 'match-line';
+              line.innerHTML = `Ln ${match.lineNumber}: ${highlightMatches(match.line, descriptor)}`;
+              card.appendChild(line);
+            });
+
+          const actions = document.createElement('div');
+          actions.className = 'inline-actions';
+
+          const previewBtn = document.createElement('button');
+          previewBtn.type = 'button';
+          previewBtn.textContent = '👀 Preview';
+          previewBtn.addEventListener('click', () => previewFile(item.filename));
+          actions.appendChild(previewBtn);
+
+          const downloadBtn = document.createElement('button');
+          downloadBtn.type = 'button';
+          downloadBtn.textContent = '⬇️ Download';
+          downloadBtn.addEventListener('click', () => downloadFile(item.filename));
+          actions.appendChild(downloadBtn);
+
+          if (userProfile?.role === 'admin') {
+            const deleteBtn = document.createElement('button');
+            deleteBtn.type = 'button';
+            deleteBtn.textContent = '🗑️ Delete';
+            deleteBtn.addEventListener('click', () => deleteFile(item.filename));
+            actions.appendChild(deleteBtn);
+          }
+
+          card.appendChild(actions);
+          fragment.appendChild(card);
+        });
+
+        resultsEl.appendChild(fragment);
+      }
+
+      function formatFileSize(bytes) {
+        if (!Number.isFinite(bytes)) {
+          return 'unknown size';
+        }
+        if (bytes < 1024) {
+          return `${bytes} B`;
+        }
+        if (bytes < 1024 * 1024) {
+          return `${(bytes / 1024).toFixed(1)} KB`;
+        }
+        return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+      }
+
+      function hidePreview() {
+        previewSection.style.display = 'none';
+        previewFilenameEl.textContent = '';
+        previewMetaEl.textContent = '';
+        if (previewRawEl) {
+          previewRawEl.textContent = '';
+        }
+        if (previewRenderedEl) {
+          previewRenderedEl.innerHTML = '';
+        }
+      }
+
+      function showPreview(data) {
+        previewFilenameEl.textContent = data.filename;
+        const lineLabel = data.lineCount === 1 ? '1 line' : `${data.lineCount} lines`;
+        previewMetaEl.textContent = `${lineLabel} • ${formatFileSize(data.size || 0)}`;
+        renderPreviewContent(data.content || '');
+        previewSection.style.display = 'block';
+        setPreviewMode(currentPreviewMode, { persist: false });
+      }
+
+      async function previewFile(filename) {
+        try {
+          const token = requireToken();
+          const response = await fetch(`${origin}/preview-doc/${encodeURIComponent(filename)}`, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
+
+          if (!response.ok) {
+            const error = await response.json().catch(() => ({ message: 'Preview failed.' }));
+            throw new Error(error.message || 'Preview failed.');
+          }
+
+          const data = await response.json();
+          showPreview(data);
+        } catch (error) {
+          console.error(error);
+          setStatus(error.message, 'error');
+        }
+      }
+
+      function connectSocket() {
+        if (socket) {
+          socket.disconnect();
+        }
+        socket = io(origin, {
+          auth: {
+            token: authToken,
+          },
+        });
+
+        socket.on('connect', () => {
+          setStatus('Connected to live updates.', 'info', 1500);
+        });
+
+        socket.on('disconnect', () => {
+          setStatus('Disconnected from live updates.', 'error');
+        });
+
+        socket.on('connect_error', (error) => {
+          const message = error?.message || 'Live update authentication failed.';
+          setStatus(message, 'error');
+        });
+
+        socket.on('file_changed', (payload) => {
+          const { event, filename, user } = payload;
+          const byline = user?.user ? ` by ${user.user}` : '';
+          const message = `File ${filename} ${event}${byline}. Refreshing results...`;
+          setStatus(message, 'info');
+          if (previewSection.style.display !== 'none' && previewFilenameEl.textContent === filename) {
+            if (event === 'deleted' || event === 'removed') {
+              hidePreview();
+            } else {
+              previewFile(filename);
+            }
+          }
+          rerunLastSearch();
+        });
+
+        socket.on('index_updated', () => {
+          rerunLastSearch();
+        });
+
+        socket.on('index_ready', () => {
+          rerunLastSearch();
+        });
+      }
+
+      function rerunLastSearch() {
+        if (lastSearch) {
+          performSearch(lastSearch.input, lastSearch.mode, { skipUiSync: true });
+        }
+      }
+
+      async function performSearch(rawInput, mode, options = {}) {
+        try {
+          const token = requireToken();
+          const selectedMode = mode || 'and';
+          const trimmed = (rawInput || '').trim();
+
+          if (!trimmed) {
+            setStatus('Enter at least one keyword or pattern to search.', 'error');
+            return;
+          }
+
+          const params = new URLSearchParams({ keywords: trimmed, mode: selectedMode });
+          let requestValue = trimmed;
+
+          if (selectedMode === 'and') {
+            const keywords = trimmed
+              .split(',')
+              .map((kw) => kw.trim())
+              .filter(Boolean);
+
+            if (!keywords.length) {
+              setStatus('Enter at least one keyword to search.', 'error');
+              return;
+            }
+
+            requestValue = keywords.join(',');
+            params.set('keywords', requestValue);
+          } else if (selectedMode === 'regex') {
+            try {
+              new RegExp(trimmed);
+            } catch (_error) {
+              setStatus('Invalid regular expression. Please fix the pattern and try again.', 'error');
+              return;
+            }
+          } else if (selectedMode === 'wildcard') {
+            try {
+              new RegExp(wildcardPatternToRegexSource(trimmed));
+            } catch (_error) {
+              setStatus('Invalid wildcard pattern. Please fix the expression and try again.', 'error');
+              return;
+            }
+          } else {
+            setStatus('Unsupported search mode selected.', 'error');
+            return;
+          }
+
+          const response = await fetch(`${origin}/search-doc?${params.toString()}`, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
+
+          if (!response.ok) {
+            const error = await response.json().catch(() => ({ message: 'Search failed.' }));
+            throw new Error(error.message || 'Search failed.');
+          }
+
+          const data = await response.json();
+          let descriptor = null;
+
+          if (data.mode === 'regex' || data.mode === 'wildcard') {
+            descriptor = {
+              mode: data.mode,
+              pattern: data.pattern,
+              flags: data.flags,
+            };
+          } else {
+            const keywords = (data.keywords || requestValue.split(',')).map((kw) => kw.trim()).filter(Boolean);
+            descriptor = {
+              mode: 'and',
+              keywords,
+            };
+          }
+
+          renderResults(data.results || [], descriptor);
+          lastSearch = { input: requestValue, mode: selectedMode };
+
+          if (!options.skipUiSync) {
+            searchModeSelect.value = selectedMode;
+          }
+        } catch (error) {
+          renderResults([], null);
+          console.error(error);
+          setStatus(error.message, 'error');
+        }
+      }
+
+      async function downloadFile(filename) {
+        try {
+          const token = requireToken();
+          const response = await fetch(`${origin}/download-doc/${encodeURIComponent(filename)}`, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
+
+          if (!response.ok) {
+            const error = await response.json().catch(() => ({ message: 'Download failed.' }));
+            throw new Error(error.message || 'Download failed.');
+          }
+
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = filename;
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          window.URL.revokeObjectURL(url);
+        } catch (error) {
+          console.error(error);
+          setStatus(error.message, 'error');
+        }
+      }
+
+      async function deleteFile(filename) {
+        if (!confirm(`Delete ${filename}? This cannot be undone.`)) {
+          return;
+        }
+        try {
+          const token = requireToken();
+          const response = await fetch(`${origin}/delete-doc/${encodeURIComponent(filename)}`, {
+            method: 'DELETE',
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
+
+          if (!response.ok) {
+            const error = await response.json().catch(() => ({ message: 'Delete failed.' }));
+            throw new Error(error.message || 'Delete failed.');
+          }
+
+          setStatus(`${filename} deleted successfully.`);
+          if (previewSection.style.display !== 'none' && previewFilenameEl.textContent === filename) {
+            hidePreview();
+          }
+          rerunLastSearch();
+        } catch (error) {
+          console.error(error);
+          setStatus(error.message, 'error');
+        }
+      }
+
+      async function uploadFile(file) {
+        try {
+          const token = requireToken();
+          const formData = new FormData();
+          formData.append('file', file);
+
+          const response = await fetch(`${origin}/upload-doc`, {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+            body: formData,
+          });
+
+          if (!response.ok) {
+            const error = await response.json().catch(() => ({ message: 'Upload failed.' }));
+            throw new Error(error.message || 'Upload failed.');
+          }
+
+          setStatus(`${file.name} uploaded successfully.`);
+          rerunLastSearch();
+        } catch (error) {
+          console.error(error);
+          setStatus(error.message, 'error');
+        }
+      }
+
+      async function forceReindex() {
+        try {
+          const token = requireToken();
+          const response = await fetch(`${origin}/force-reindex`, {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
+
+          if (!response.ok) {
+            const error = await response.json().catch(() => ({ message: 'Reindex failed.' }));
+            throw new Error(error.message || 'Reindex failed.');
+          }
+
+          setStatus('Index rebuilt.');
+          rerunLastSearch();
+        } catch (error) {
+          console.error(error);
+          setStatus(error.message, 'error');
+        }
+      }
+
+      function getFilteredHistory() {
+        const term = historyFilterInput.value.trim().toLowerCase();
+        if (!term) {
+          return [...historyRecords];
+        }
+        return historyRecords.filter((record) => {
+          return [record.filename, record.user, record.role, new Date(record.uploadedAt).toLocaleString()]
+            .map((value) => String(value).toLowerCase())
+            .some((value) => value.includes(term));
+        });
+      }
+
+      function getSortedHistory(records) {
+        if (!historySort.key) {
+          return [...records];
+        }
+        const multiplier = historySort.direction === 'asc' ? 1 : -1;
+        return [...records].sort((a, b) => {
+          if (historySort.key === 'uploadedAt') {
+            return (new Date(a.uploadedAt) - new Date(b.uploadedAt)) * multiplier;
+          }
+          return String(a[historySort.key]).localeCompare(String(b[historySort.key])) * multiplier;
+        });
+      }
+
+      function renderHistoryTable() {
+        if (!historyRecords.length) {
+          if (!historyLoaded) {
+            historyContainer.innerHTML = '<p style="color: var(--muted-text); margin-top:0.75rem;">History not loaded yet. Select “View Upload History”.</p>';
+          } else {
+            historyContainer.innerHTML = '<p style="color: var(--muted-text); margin-top:0.75rem;">No uploads yet.</p>';
+          }
+          return;
+        }
+
+        const filtered = getFilteredHistory();
+        if (!filtered.length) {
+          historyContainer.innerHTML = '<p style="color: var(--muted-text); margin-top:0.75rem;">No uploads match your filter.</p>';
+          return;
+        }
+
+        const records = getSortedHistory(filtered);
+
+        const table = document.createElement('table');
+        const thead = document.createElement('thead');
+        const headerRow = document.createElement('tr');
+        const headers = [
+          { key: 'filename', label: 'File' },
+          { key: 'user', label: 'User' },
+          { key: 'role', label: 'Role' },
+          { key: 'uploadedAt', label: 'Uploaded At' },
+        ];
+
+        headers.forEach((header) => {
+          const th = document.createElement('th');
+          const isActive = historySort.key === header.key;
+          const arrow = isActive ? (historySort.direction === 'asc' ? ' ▲' : ' ▼') : '';
+          th.textContent = `${header.label}${arrow}`;
+          th.addEventListener('click', () => {
+            if (historySort.key === header.key) {
+              historySort.direction = historySort.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+              historySort = {
+                key: header.key,
+                direction: header.key === 'uploadedAt' ? 'desc' : 'asc',
+              };
+            }
+            renderHistoryTable();
+          });
+          headerRow.appendChild(th);
+        });
+
+        thead.appendChild(headerRow);
+        table.appendChild(thead);
+
+        const tbody = document.createElement('tbody');
+        records.forEach((record) => {
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td>${record.filename}</td>
+            <td>${record.user}</td>
+            <td>${record.role}</td>
+            <td>${new Date(record.uploadedAt).toLocaleString()}</td>
+          `;
+          tbody.appendChild(row);
+        });
+        table.appendChild(tbody);
+
+        historyContainer.innerHTML = '';
+        historyContainer.appendChild(table);
+      }
+
+      async function loadHistory() {
+        try {
+          const token = requireToken();
+          historyContainer.innerHTML = '<p style="color: var(--muted-text); margin-top:0.75rem;">Loading history…</p>';
+          const response = await fetch(`${origin}/upload-history`, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
+
+          if (!response.ok) {
+            const error = await response.json().catch(() => ({ message: 'History failed.' }));
+            throw new Error(error.message || 'Could not load history.');
+          }
+
+          const data = await response.json();
+          historyRecords = data.history || [];
+          historySort = { key: 'uploadedAt', direction: 'desc' };
+          historyFilterInput.value = '';
+          historyFilterInput.disabled = false;
+          historyLoaded = true;
+          renderHistoryTable();
+        } catch (error) {
+          console.error(error);
+          setStatus(error.message, 'error');
+        }
+      }
+
+      loginBtn.addEventListener('click', async () => {
+        try {
+          const username = document.getElementById('username').value.trim();
+          const role = roleSelect.value;
+
+          if (!username) {
+            setStatus('Enter a username.', 'error');
+            return;
+          }
+
+          if (!allowedRoles.includes(role)) {
+            setStatus('Select a valid role.', 'error');
+            return;
+          }
+
+          const params = new URLSearchParams({ user: username, role });
+          const response = await fetch(`${origin}/get-token?${params.toString()}`);
+          if (!response.ok) {
+            const error = await response.json().catch(() => ({ message: 'Login failed.' }));
+            throw new Error(error.message || 'Login failed.');
+          }
+
+          const data = await response.json();
+          authToken = data.token;
+          userProfile = { user: username, role };
+          currentUserEl.textContent = `Logged in as ${username} (${role})`;
+          setStatus('Login successful. Token stored.');
+          updateRoleControls();
+          connectSocket();
+        } catch (error) {
+          console.error(error);
+          setStatus(error.message, 'error');
+        }
+      });
+
+      searchBtn.addEventListener('click', () => {
+        performSearch(searchInput.value, searchModeSelect.value);
+      });
+
+      searchInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          performSearch(searchInput.value, searchModeSelect.value);
+        }
+      });
+
+      uploadBtn.addEventListener('click', () => {
+        if (uploadBtn.disabled) {
+          setStatus('You do not have permission to upload files.', 'error');
+          return;
+        }
+        fileInput.click();
+      });
+
+      fileInput.addEventListener('change', () => {
+        const file = fileInput.files[0];
+        if (file) {
+          if (!file.name.endsWith('.md')) {
+            setStatus('Only Markdown files are supported.', 'error');
+            return;
+          }
+          uploadFile(file);
+          fileInput.value = '';
+        }
+      });
+
+      reindexBtn.addEventListener('click', () => {
+        if (reindexBtn.disabled) {
+          setStatus('Admin role required for reindexing.', 'error');
+          return;
+        }
+        forceReindex();
+      });
+
+      historyFilterInput.addEventListener('input', () => {
+        if (historyFilterInput.disabled) {
+          return;
+        }
+        renderHistoryTable();
+      });
+
+      historyBtn.addEventListener('click', () => {
+        if (historyBtn.disabled) {
+          setStatus('Admin role required to view history.', 'error');
+          return;
+        }
+        loadHistory();
+      });
+
+      closePreviewBtn.addEventListener('click', () => {
+        hidePreview();
+      });
+
+      updateRoleControls();
+    </script>
+  </body>
+</html>
