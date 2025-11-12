@@ -612,6 +612,7 @@
       }
 
       async function savePreviewEdits() {
+        let originalLabel = previewSaveBtn?.textContent;
         try {
           if (!canEditPreview()) {
             setStatus('Editor or admin role required to edit files.', 'error');
@@ -623,7 +624,6 @@
           }
           const token = requireToken();
           const nextContent = previewEditorInput?.value ?? '';
-          const originalLabel = previewSaveBtn?.textContent;
           if (previewSaveBtn) {
             previewSaveBtn.disabled = true;
             previewSaveBtn.textContent = 'Saving...';
